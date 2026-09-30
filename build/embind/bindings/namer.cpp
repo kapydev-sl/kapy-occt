@@ -49,9 +49,10 @@
 
 #include <vector>
 
+#include "namerCore.hxx"
+
 using namespace emscripten;
 
-using ShapeIndexedMap = NCollection_IndexedMap<TopoDS_Shape, TopTools_ShapeMapHasher>;
 using ShapeList = NCollection_List<TopoDS_Shape>;
 
 // Append the result-map indices of every shape in `list` that is of `kind`.
@@ -134,121 +135,147 @@ static double surface_type_code(GeomAbs_SurfaceType t) {
     }
 }
 
-// The doubles `faceProps` writes per face. Exposed as `facePropsStride` so
-// the boot can refuse a kernel linked before the surface class was bound
-// (its faces are 8 doubles wide, and decoding them 9 at a time would be
-// silent garbage).
-static constexpr int kFacePropsStride = 9;
+// The doubles `faceProps` writes per face (`kFacePropsStride`, namerCore.hxx)
+// are exposed as `facePropsStride` so the boot can refuse a kernel linked
+// before the surface class was bound (its faces are 8 doubles wide, and
+// decoding them 9 at a time would be silent garbage).
 
 // 9 doubles per face: isPlanar, normal xyz, centroid xyz, area, surface class
 // (surface_type_code). The class rides in the same call so a curved face costs
 // no crossing of its own (doc 34, D-N5): before it, each asked its class
 // through a JS adaptor, ~5 crossings a face.
-static std::vector<double> face_props(const ShapeIndexedMap& map) {
+namespace kapy_namer {
+
+void face_row(const TopoDS_Face& face, double* out) {
+    // Non-planar faces keep the [0,0,1] default, exactly as the TS did.
+    double nx = 0, ny = 0, nz = 1;
+    bool isPlanar = false;
+    double surfaceType = 6;
+    {
+        BRepAdaptor_Surface adaptor(face, false);
+        const GeomAbs_SurfaceType t = adaptor.GetType();
+        surfaceType = surface_type_code(t);
+        if (t == GeomAbs_Plane) {
+            isPlanar = true;
+            // Keep the plane alive: binding a reference to a subobject of
+            // the temporary gp_Pln would dangle at the end of the statement.
+            const gp_Pln pln = adaptor.Plane();
+            const gp_Dir d = pln.Axis().Direction();
+            nx = d.X();
+            ny = d.Y();
+            nz = d.Z();
+        }
+    }
+    // A reversed face flips its normal — including the default one.
+    if (face.Orientation() == TopAbs_REVERSED) {
+        nx = -nx;
+        ny = -ny;
+        nz = -nz;
+    }
+    GProp_GProps props;
+    BRepGProp::SurfaceProperties(face, props, false, false);
+    const gp_Pnt com = props.CentreOfMass();
+    out[0] = isPlanar ? 1.0 : 0.0;
+    out[1] = nx;
+    out[2] = ny;
+    out[3] = nz;
+    out[4] = com.X();
+    out[5] = com.Y();
+    out[6] = com.Z();
+    out[7] = props.Mass();
+    out[8] = surfaceType;
+}
+
+std::vector<double> face_props(const ShapeIndexedMap& map) {
     const int n = map.Extent();
-    std::vector<double> out;
-    out.reserve(static_cast<size_t>(n) * kFacePropsStride);
+    std::vector<double> out(static_cast<size_t>(n) * kFacePropsStride);
     for (int i = 1; i <= n; ++i) {
-        const TopoDS_Face face = TopoDS::Face(map.FindKey(i));
-        // Non-planar faces keep the [0,0,1] default, exactly as the TS did.
-        double nx = 0, ny = 0, nz = 1;
-        bool isPlanar = false;
-        double surfaceType = 6;
-        {
-            BRepAdaptor_Surface adaptor(face, false);
-            const GeomAbs_SurfaceType t = adaptor.GetType();
-            surfaceType = surface_type_code(t);
-            if (t == GeomAbs_Plane) {
-                isPlanar = true;
-                // Keep the plane alive: binding a reference to a subobject of
-                // the temporary gp_Pln would dangle at the end of the statement.
-                const gp_Pln pln = adaptor.Plane();
-                const gp_Dir d = pln.Axis().Direction();
-                nx = d.X();
-                ny = d.Y();
-                nz = d.Z();
-            }
-        }
-        // A reversed face flips its normal — including the default one.
-        if (face.Orientation() == TopAbs_REVERSED) {
-            nx = -nx;
-            ny = -ny;
-            nz = -nz;
-        }
-        GProp_GProps props;
-        BRepGProp::SurfaceProperties(face, props, false, false);
-        const gp_Pnt com = props.CentreOfMass();
-        out.push_back(isPlanar ? 1.0 : 0.0);
-        out.push_back(nx);
-        out.push_back(ny);
-        out.push_back(nz);
-        out.push_back(com.X());
-        out.push_back(com.Y());
-        out.push_back(com.Z());
-        out.push_back(props.Mass());
-        out.push_back(surfaceType);
+        face_row(TopoDS::Face(map.FindKey(i)),
+                 out.data() + static_cast<size_t>(i - 1) * kFacePropsStride);
     }
     return out;
 }
 
 // 16 doubles per edge: type (0 line, 1 circle, 2 other), p0 xyz, p1 xyz,
 // mid xyz, length, hasCircle, centre xyz, radius.
-static std::vector<double> edge_props(const ShapeIndexedMap& map) {
+void edge_row(const TopoDS_Edge& edge, double* out) {
+    BRepAdaptor_Curve curve(edge);
+    double type = 2, cx = 0, cy = 0, cz = 0, radius = 0, hasCircle = 0;
+    const GeomAbs_CurveType t = curve.GetType();
+    if (t == GeomAbs_Line) {
+        type = 0;
+    } else if (t == GeomAbs_Circle) {
+        type = 1;
+        hasCircle = 1;
+        const gp_Circ circ = curve.Circle();
+        radius = circ.Radius();
+        const gp_Pnt loc = circ.Location();
+        cx = loc.X();
+        cy = loc.Y();
+        cz = loc.Z();
+    }
+    const double u0 = curve.FirstParameter();
+    const double u1 = curve.LastParameter();
+    gp_Pnt p0, p1, pM;
+    curve.D0(u0, p0);
+    curve.D0(u1, p1);
+    curve.D0(0.5 * (u0 + u1), pM);
+
+    GProp_GProps props;
+    BRepGProp::LinearProperties(edge, props, false, false);
+
+    out[0] = type;
+    out[1] = p0.X(); out[2] = p0.Y(); out[3] = p0.Z();
+    out[4] = p1.X(); out[5] = p1.Y(); out[6] = p1.Z();
+    out[7] = pM.X(); out[8] = pM.Y(); out[9] = pM.Z();
+    out[10] = props.Mass();
+    out[11] = hasCircle;
+    out[12] = cx; out[13] = cy; out[14] = cz;
+    out[15] = radius;
+}
+
+std::vector<double> edge_props(const ShapeIndexedMap& map) {
     const int n = map.Extent();
-    std::vector<double> out;
-    out.reserve(static_cast<size_t>(n) * 16);
+    std::vector<double> out(static_cast<size_t>(n) * kEdgePropsStride);
     for (int i = 1; i <= n; ++i) {
-        const TopoDS_Edge edge = TopoDS::Edge(map.FindKey(i));
-        BRepAdaptor_Curve curve(edge);
-        double type = 2, cx = 0, cy = 0, cz = 0, radius = 0, hasCircle = 0;
-        const GeomAbs_CurveType t = curve.GetType();
-        if (t == GeomAbs_Line) {
-            type = 0;
-        } else if (t == GeomAbs_Circle) {
-            type = 1;
-            hasCircle = 1;
-            const gp_Circ circ = curve.Circle();
-            radius = circ.Radius();
-            const gp_Pnt loc = circ.Location();
-            cx = loc.X();
-            cy = loc.Y();
-            cz = loc.Z();
-        }
-        const double u0 = curve.FirstParameter();
-        const double u1 = curve.LastParameter();
-        gp_Pnt p0, p1, pM;
-        curve.D0(u0, p0);
-        curve.D0(u1, p1);
-        curve.D0(0.5 * (u0 + u1), pM);
-
-        GProp_GProps props;
-        BRepGProp::LinearProperties(edge, props, false, false);
-
-        out.push_back(type);
-        out.push_back(p0.X()); out.push_back(p0.Y()); out.push_back(p0.Z());
-        out.push_back(p1.X()); out.push_back(p1.Y()); out.push_back(p1.Z());
-        out.push_back(pM.X()); out.push_back(pM.Y()); out.push_back(pM.Z());
-        out.push_back(props.Mass());
-        out.push_back(hasCircle);
-        out.push_back(cx); out.push_back(cy); out.push_back(cz);
-        out.push_back(radius);
+        edge_row(TopoDS::Edge(map.FindKey(i)),
+                 out.data() + static_cast<size_t>(i - 1) * kEdgePropsStride);
     }
     return out;
 }
 
 // 3 doubles per vertex: world position.
-static std::vector<double> vertex_props(const ShapeIndexedMap& map) {
+void vertex_row(const TopoDS_Vertex& vertex, double* out) {
+    const gp_Pnt p = BRep_Tool::Pnt(vertex);
+    out[0] = p.X();
+    out[1] = p.Y();
+    out[2] = p.Z();
+}
+
+std::vector<double> vertex_props(const ShapeIndexedMap& map) {
     const int n = map.Extent();
-    std::vector<double> out;
-    out.reserve(static_cast<size_t>(n) * 3);
+    std::vector<double> out(static_cast<size_t>(n) * kVertexPropsStride);
     for (int i = 1; i <= n; ++i) {
-        const gp_Pnt p = BRep_Tool::Pnt(TopoDS::Vertex(map.FindKey(i)));
-        out.push_back(p.X());
-        out.push_back(p.Y());
-        out.push_back(p.Z());
+        vertex_row(TopoDS::Vertex(map.FindKey(i)),
+                   out.data() + static_cast<size_t>(i - 1) * kVertexPropsStride);
     }
     return out;
 }
+
+// The history of an operand against a result, by the two providers the app
+// names against (the flat layout is documented at the top of this file).
+std::vector<int> propagate_maker(BRepBuilderAPI_MakeShape& op, const ShapeIndexedMap& opMap,
+                                 const ShapeIndexedMap& resultMap, int kind) {
+    return propagate_impl(op, opMap, resultMap, kind);
+}
+std::vector<int> propagate_history(BRepTools_History& op, const ShapeIndexedMap& opMap,
+                                   const ShapeIndexedMap& resultMap, int kind) {
+    return propagate_impl(op, opMap, resultMap, kind);
+}
+
+}  // namespace kapy_namer
+
+using namespace kapy_namer;
 
 static val props_view(const std::vector<double>& flat) {
     return val(typed_memory_view(flat.size(), flat.data())).call<val>("slice");

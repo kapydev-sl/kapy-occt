@@ -65,3 +65,7 @@ KAPY_API int32_t kapy_retain(uint32_t handle) noexcept;
 // (min xyz, max xyz), or an empty arena for a void shape.
 KAPY_API int32_t kapy_volume(uint32_t handle) noexcept;
 KAPY_API int32_t kapy_bounds(uint32_t handle) noexcept;
+
+// The naming facts the kernel collected since the last call, in the facts'
+// binary layout (see topo/store/wire.rs), in the arena; the log is emptied.
+KAPY_API int32_t kapy_facts_take() noexcept;
