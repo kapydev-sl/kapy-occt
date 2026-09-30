@@ -65,8 +65,13 @@ void buildBoolean(uint32_t id, uint32_t previous, uint32_t tool, const Maps& res
 
 void buildUnify(uint32_t id, uint32_t previous, const Maps& result, const std::string& bornIn,
                 const val& history, const Maps& previousMaps) {
+    buildUnifyOf(id, previous, result, bornIn, history.as<BRepTools_History&>(), previousMaps);
+}
+
+void buildUnifyOf(uint32_t id, uint32_t previous, const Maps& result, const std::string& bornIn,
+                  BRepTools_History& history, const Maps& previousMaps) {
     std::vector<Block> blocks{elementsOf(result, false)};
-    extend(blocks, historyBlocks(kSourceHistory, history, previousMaps, result));
+    extend(blocks, historyBlocksOfHistory(history, previousMaps, result));
     construct(id, previous, 0,
               head("unify", bornIn) + ",\"elements\":" + ref(0) + ",\"previous\":" + historyRef(1) +
                   "}",

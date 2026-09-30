@@ -70,25 +70,26 @@ std::string countsJson(const ResultMaps& m) {
 }
 
 // `[{"self":i,"gen":[...]},...]` of the base shapes in `list`.
-std::string basesJson(BRepBuilderAPI_MakeShape& maker, const val& list, const ShapeIndexedMap& own,
-                      TopAbs_ShapeEnum want, const ShapeIndexedMap& generatedIn) {
+std::string basesJson(BRepBuilderAPI_MakeShape& maker, const std::vector<TopoDS_Shape>& list,
+                      const ShapeIndexedMap& own, TopAbs_ShapeEnum want,
+                      const ShapeIndexedMap& generatedIn) {
     std::string out = "[";
-    const unsigned n = list["length"].as<unsigned>();
-    for (unsigned i = 0; i < n; ++i) {
-        const TopoDS_Shape& base = list[i].as<const TopoDS_Shape&>();
+    const size_t n = list.size();
+    for (size_t i = 0; i < n; ++i) {
+        const TopoDS_Shape& base = list[i];
         out += std::string(i ? "," : "") + "{\"self\":" + std::to_string(indexIn(own, base)) +
                ",\"gen\":" + generatedJson(maker, base, want, generatedIn) + "}";
     }
     return out + "]";
 }
 
-std::string loopsJson(BRepBuilderAPI_MakeShape& maker, const val& loops, const ResultMaps& m) {
+std::string loopsJson(BRepBuilderAPI_MakeShape& maker, const std::vector<Loop>& loops,
+                      const ResultMaps& m) {
     std::string out = "[";
-    const unsigned n = loops["length"].as<unsigned>();
-    for (unsigned i = 0; i < n; ++i) {
+    for (size_t i = 0; i < loops.size(); ++i) {
         out += std::string(i ? "," : "") + "{\"edges\":" +
-               basesJson(maker, loops[i]["edges"], m.edge, TopAbs_FACE, m.face) +
-               ",\"verts\":" + basesJson(maker, loops[i]["verts"], m.vertex, TopAbs_EDGE, m.edge) +
+               basesJson(maker, loops[i].edges, m.edge, TopAbs_FACE, m.face) +
+               ",\"verts\":" + basesJson(maker, loops[i].verts, m.vertex, TopAbs_EDGE, m.edge) +
                "}";
     }
     return out + "]";
@@ -96,17 +97,15 @@ std::string loopsJson(BRepBuilderAPI_MakeShape& maker, const val& loops, const R
 
 // The top-cap edges of a prism swept by `direction` and every base edge's
 // midpoint per loop.
-std::string topEdgesJson(BRepBuilderAPI_MakeShape& maker, const val& loops, const ResultMaps& m,
-                         const double* direction) {
+std::string topEdgesJson(BRepBuilderAPI_MakeShape& maker, const std::vector<Loop>& loops,
+                         const ResultMaps& m, const double* direction) {
     std::string mids = "[";
-    const unsigned n = loops["length"].as<unsigned>();
-    for (unsigned i = 0; i < n; ++i) {
+    for (size_t i = 0; i < loops.size(); ++i) {
         mids += std::string(i ? "," : "") + "[";
-        const val edges = loops[i]["edges"];
-        const unsigned k = edges["length"].as<unsigned>();
-        for (unsigned j = 0; j < k; ++j) {
+        const std::vector<TopoDS_Shape>& edges = loops[i].edges;
+        for (size_t j = 0; j < edges.size(); ++j) {
             double r[kapy_namer::kEdgePropsStride];
-            kapy_namer::edge_row(TopoDS::Edge(edges[j].as<const TopoDS_Shape&>()), r);
+            kapy_namer::edge_row(TopoDS::Edge(edges[j]), r);
             mids += std::string(j ? "," : "") + jvec3(r + 7);
         }
         mids += "]";
@@ -138,11 +137,34 @@ ResultMaps mapsOfShape(const TopoDS_Shape& shape) {
 
 }  // namespace
 
+std::string prismRolesOf(BRepBuilderAPI_MakeShape& maker, const TopoDS_Shape& shape,
+                         const std::vector<Loop>& loops, bool withHoles,
+                         const std::string& sourcesJson, const double* direction) {
+    const ResultMaps m = mapsOfShape(shape);
+    return std::string("{\"kind\":\"prism\",\"withHoles\":") + jbool(withHoles) +
+           ",\"counts\":" + countsJson(m) + ",\"caps\":" + capsJson(maker, m.face) +
+           ",\"loops\":" + loopsJson(maker, loops, m) + ",\"sources\":" + sourcesJson +
+           ",\"topEdges\":" + (direction ? topEdgesJson(maker, loops, m, direction) : std::string("null")) +
+           "}";
+}
+
 std::string sweptRoles(const std::string& kind, const val& makerVal, const TopoDS_Shape& shape,
-                       const val& loops, bool withHoles, bool isFull,
+                       const val& loopsVal, bool withHoles, bool isFull,
                        const std::string& sourcesJson, bool hasDirection, double dx, double dy,
                        double dz) {
     BRepBuilderAPI_MakeShape& maker = makerVal.as<BRepBuilderAPI_MakeShape&>();
+    std::vector<Loop> loops;
+    const unsigned count = loopsVal["length"].as<unsigned>();
+    for (unsigned i = 0; i < count; ++i) {
+        Loop loop;
+        for (const char* key : {"edges", "verts"}) {
+            const val list = loopsVal[i][key];
+            std::vector<TopoDS_Shape>& into = key[0] == 'e' ? loop.edges : loop.verts;
+            const unsigned n = list["length"].as<unsigned>();
+            for (unsigned k = 0; k < n; ++k) into.push_back(list[k].as<const TopoDS_Shape&>());
+        }
+        loops.push_back(std::move(loop));
+    }
     const ResultMaps m = mapsOfShape(shape);
     const std::string head = "{\"kind\":" + jstr(kind) + ",\"withHoles\":" + jbool(withHoles);
     if (kind == "prism") {

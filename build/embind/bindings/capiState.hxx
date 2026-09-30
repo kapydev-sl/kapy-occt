@@ -4,7 +4,7 @@
 // test-only perturbation. One definition (capiCore.cpp), so an operation file
 // never keeps state of its own.
 //
-// Who includes it: capiCore.cpp, capiOps.cpp, capiEmbind.cpp.
+// Who includes it: capiCore.cpp, capiOps.cpp, capiOp.hxx, capiEmbind.cpp.
 // What does NOT belong here: the public signatures (kapy_capi.h).
 
 #pragma once
@@ -27,7 +27,8 @@ int32_t answer(const void* bytes, size_t length);
 int32_t answerNothing();
 
 // The perturbation a red control asks for (see `Kapy_CapiPerturbForTest`):
-// 0 none, 1 the volume answer is scaled, 2 the bounds answer is shifted.
+// 0 none, 1 the volume answer is zeroed, 2 the bounds answer is shifted, 3 every
+// prism sweeps a metre further along z.
 int perturbation();
 void setPerturbation(int mode);
 

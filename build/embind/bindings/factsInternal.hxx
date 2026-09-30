@@ -17,6 +17,9 @@
 
 #include <emscripten/val.h>
 
+#include <BRepBuilderAPI_MakeShape.hxx>
+#include <BRepTools_History.hxx>
+
 #include "factsLog.hxx"
 #include "namerCore.hxx"
 
@@ -38,10 +41,22 @@ Maps mapsOf(const emscripten::val& holder);
 // of a multi-solid body), or a `BRepTools_History` (unify).
 enum SourceKind { kSourceMaker = 0, kSourceMakers = 1, kSourceHistory = 2 };
 
+// One profile loop's base shapes, in wire-explorer order: the native spelling
+// of the `{edges, verts}` object the embind collectors read.
+struct Loop {
+    std::vector<TopoDS_Shape> edges;
+    std::vector<TopoDS_Shape> verts;
+};
+
 // The three INTS blocks (face, edge, vertex) of `operand`'s history against
 // `result`.
 std::vector<Block> historyBlocks(int sourceKind, const emscripten::val& source,
                                  const Maps& operand, const Maps& result);
+
+// The same three blocks for a `BRepTools_History` operand, without a
+// JavaScript object in between (the C operations that unify their own result).
+std::vector<Block> historyBlocksOfHistory(BRepTools_History& history, const Maps& operand,
+                                          const Maps& result);
 
 // The ELEMENTS block of a result's maps.
 Block elementsOf(const Maps& maps, bool each);
@@ -57,6 +72,13 @@ std::string sweptRoles(const std::string& kind, const emscripten::val& maker,
                        bool isFull, const std::string& sourcesJson, bool hasDirection,
                        double dx, double dy, double dz);
 
+// The role facts of a straight prism, given its loops natively; `direction`
+// (three numbers, or null) enables the top-edge provenance. The JSON is the
+// one `sweptRoles` writes for kind "prism".
+std::string prismRolesOf(BRepBuilderAPI_MakeShape& maker, const TopoDS_Shape& shape,
+                         const std::vector<Loop>& loops, bool withHoles,
+                         const std::string& sourcesJson, const double* direction);
+
 // The role facts of index roles with a fixed prefix.
 std::string indexedRoles(const std::string& prefix, const TopoDS_Shape& shape);
 
@@ -69,6 +91,8 @@ void buildBoolean(uint32_t id, uint32_t previous, uint32_t tool, const Maps& res
                   const Maps& previousMaps, const Maps* toolMaps);
 void buildUnify(uint32_t id, uint32_t previous, const Maps& result, const std::string& bornIn,
                 const emscripten::val& history, const Maps& previousMaps);
+void buildUnifyOf(uint32_t id, uint32_t previous, const Maps& result, const std::string& bornIn,
+                  BRepTools_History& history, const Maps& previousMaps);
 void buildOffsetFaces(uint32_t id, uint32_t previous, const Maps& result,
                       const std::string& bornIn, double offset);
 void buildSubShape(uint32_t id, uint32_t previous, const Maps& piece, const Maps& parent,

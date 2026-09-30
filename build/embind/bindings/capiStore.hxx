@@ -27,6 +27,10 @@ namespace kapy_capi {
 struct Entry {
     TopoDS_Shape shape;
     uint32_t refs = 1;
+    // The naming table the core holds for this shape (0: none known). The C
+    // operations that name what they build record it; the shape cache records
+    // it for the handles it mints.
+    uint32_t tableId = 0;
     bool mapped = false;
     TopTools_IndexedMapOfShape faces;
     TopTools_IndexedMapOfShape edges;
@@ -35,6 +39,20 @@ struct Entry {
 
 // Put a shape in the table with one owner; answers its new handle.
 uint32_t put(const TopoDS_Shape& shape);
+
+// Put a shape a C operation built in the table with its naming table. The
+// handle is queued for `takeMinted`, so the host learns of a shape it did not
+// mint itself.
+uint32_t putNative(const TopoDS_Shape& shape, uint32_t tableId);
+
+// The handles `putNative` minted since the last call, in order, and forgotten.
+std::vector<uint32_t> takeMinted();
+
+// The next naming-table id. The host owns the sequence (its facts log shares
+// it); it seeds the counter before a C operation and reads it back after.
+void seedTable(uint32_t next);
+uint32_t nextTable();
+uint32_t allocTable();
 
 // The entry of `handle`, or null when it was never minted, was released, or
 // belongs to an older epoch.

@@ -7,6 +7,8 @@
 
 #include "capiStore.hxx"
 
+#include "capiMemo.hxx"
+
 #include <unordered_map>
 
 #include <TopExp.hxx>
@@ -20,6 +22,8 @@ constexpr uint32_t SERIAL_MASK = (1u << SERIAL_BITS) - 1;
 
 std::unordered_map<uint32_t, Entry> g_entries;
 std::vector<uint32_t> g_dropped;
+std::vector<uint32_t> g_minted;
+uint32_t g_table = 1;
 uint32_t g_epoch = 0;
 uint32_t g_serial = 0;
 }  // namespace
@@ -36,6 +40,23 @@ uint32_t put(const TopoDS_Shape& shape) {
     entry.shape = shape;
     return handle;
 }
+
+uint32_t putNative(const TopoDS_Shape& shape, uint32_t tableId) {
+    const uint32_t handle = put(shape);
+    g_entries[handle].tableId = tableId;
+    g_minted.push_back(handle);
+    return handle;
+}
+
+std::vector<uint32_t> takeMinted() {
+    std::vector<uint32_t> out;
+    out.swap(g_minted);
+    return out;
+}
+
+void seedTable(uint32_t next) { g_table = next; }
+uint32_t nextTable() { return g_table; }
+uint32_t allocTable() { return g_table++; }
 
 Entry* find(uint32_t handle) {
     auto it = g_entries.find(handle);
@@ -68,6 +89,8 @@ void ensureMaps(Entry& entry) {
 void reset(bool bumpEpoch) {
     g_entries.clear();
     g_dropped.clear();
+    g_minted.clear();
+    memoClear();
     g_serial = 0;
     if (bumpEpoch) g_epoch = (g_epoch + 1) & 0xff;
 }

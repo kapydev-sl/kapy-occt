@@ -79,6 +79,19 @@ std::vector<int> kindHistory(int sourceKind, const val& source, const ShapeIndex
 
 }  // namespace
 
+std::vector<Block> historyBlocksOfHistory(BRepTools_History& history, const Maps& operand,
+                                          const Maps& result) {
+    const auto of = [&](const ShapeIndexedMap& op, const ShapeIndexedMap& res, TopAbs_ShapeEnum k) {
+        return intsBlock(
+            kapy_namer::propagate_history(history, op, res, static_cast<int>(k)));
+    };
+    return {
+        of(*operand.face, *result.face, TopAbs_FACE),
+        of(*operand.edge, *result.edge, TopAbs_EDGE),
+        of(*operand.vertex, *result.vertex, TopAbs_VERTEX),
+    };
+}
+
 std::vector<Block> historyBlocks(int sourceKind, const val& source, const Maps& operand,
                                  const Maps& result) {
     return {

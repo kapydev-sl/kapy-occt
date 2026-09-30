@@ -69,3 +69,18 @@ KAPY_API int32_t kapy_bounds(uint32_t handle) noexcept;
 // The naming facts the kernel collected since the last call, in the facts'
 // binary layout (see topo/store/wire.rs), in the arena; the log is emptied.
 KAPY_API int32_t kapy_facts_take() noexcept;
+
+// Shape builders. Each takes a blob at `ptr` (`length` bytes, written by the
+// host into the kernel's memory) holding the arguments, and answers the new
+// handle as one u32 in the arena. The kernel names the shape (the facts it
+// appends to the log are the ones the JSON transport records) and stores it, so
+// the handle comes back ready to use. The blob layouts are in capiPrism.cpp,
+// capiLoft.cpp and capiPush.cpp.
+KAPY_API int32_t kapy_extrude_profile(uint32_t ptr, uint32_t length) noexcept;
+KAPY_API int32_t kapy_extrude_face_with_holes(uint32_t ptr, uint32_t length) noexcept;
+KAPY_API int32_t kapy_extrude_face(uint32_t ptr, uint32_t length) noexcept;
+KAPY_API int32_t kapy_drafted_profile(uint32_t ptr, uint32_t length) noexcept;
+KAPY_API int32_t kapy_drafted_sections(uint32_t ptr, uint32_t length) noexcept;
+KAPY_API int32_t kapy_twisted_profile(uint32_t ptr, uint32_t length) noexcept;
+KAPY_API int32_t kapy_compound(uint32_t ptr, uint32_t length) noexcept;
+KAPY_API int32_t kapy_make_box(uint32_t ptr, uint32_t length) noexcept;
