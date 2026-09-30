@@ -1,0 +1,145 @@
+# services/occt/build/kapy-occt.yml
+#
+# opencascade.js custom-build config. Lists exactly the OCCT symbols
+# our worker code touches (extracted from src/cad/**, see the table in
+# services/occt/README.md). A custom build compiles ONLY these classes
+# and lets Emscripten's -O3 dead-code-eliminate the rest, shrinking the
+# ~11 MB `opencascade.full.wasm` we currently ship to the fraction that
+# covers our kernel usage.
+#
+# Build it with the Dockerized opencascade.js toolchain:
+#   docker run --rm -v "$(pwd):/src" -u "$(id -u):$(id -g)" \
+#     donalffons/opencascade.js:2.0.0-beta.b5ff984 kapy-occt.yml
+# -> emits kapy-occt.{js,wasm,d.ts} in this directory.
+#
+# The build is the validator: an unknown / renamed symbol fails the
+# build loudly, which is exactly how we confirm the list is complete
+# and correct against the pinned OCCT version.
+
+mainBuild:
+    name: kapy-occt.js
+    bindings:
+        # --- gp: primitive geometry (points, dirs, axes, transforms) ---
+        - symbol: gp_Pnt
+        - symbol: gp_Pnt2d
+        - symbol: gp_Dir
+        - symbol: gp_Dir2d
+        - symbol: gp_Vec
+        - symbol: gp_Ax1
+        - symbol: gp_Ax2
+        - symbol: gp_Ax3
+        - symbol: gp_Trsf
+        - symbol: gp_Circ
+        - symbol: gp_Elips
+        - symbol: gp_Lin2d
+
+        # --- Geom / Geom2d: analytic curves & surfaces + their handles ---
+        - symbol: Geom_CylindricalSurface
+        - symbol: Geom2d_Line
+        - symbol: Geom2d_TrimmedCurve
+        - symbol: Handle_Geom_Surface
+        - symbol: Handle_Geom_CylindricalSurface
+        - symbol: Handle_Geom2d_Curve
+        - symbol: Handle_Geom2d_Line
+        - symbol: Handle_Geom2d_TrimmedCurve
+        - symbol: GeomAbs_CurveType
+        - symbol: GeomAbs_SurfaceType
+        - symbol: GeomAbs_JoinType
+
+        # --- TopoDS / TopAbs / TopExp / TopTools: topology core ---
+        - symbol: TopoDS
+        - symbol: TopoDS_Shape
+        - symbol: TopoDS_Face
+        - symbol: TopoDS_Edge
+        - symbol: TopoDS_Vertex
+        - symbol: TopoDS_Wire
+        - symbol: TopoDS_Solid
+        - symbol: TopoDS_Compound
+        - symbol: TopoDS_Iterator
+        - symbol: TopAbs_Orientation
+        - symbol: TopAbs_ShapeEnum
+        - symbol: TopAbs_State
+        - symbol: TopExp
+        - symbol: TopExp_Explorer
+        - symbol: TopTools_IndexedMapOfShape
+        - symbol: TopTools_ListOfShape
+        - symbol: TopLoc_Location
+
+        # --- BRep core: builder, tool, adaptors, mesh ---
+        - symbol: BRep_Builder
+        - symbol: BRep_Tool
+        - symbol: BRepAdaptor_Curve
+        - symbol: BRepAdaptor_Surface
+        - symbol: BRepMesh_IncrementalMesh
+        - symbol: BRepTools_WireExplorer
+        - symbol: BRepLib
+        - symbol: BRepBndLib
+        - symbol: Bnd_Box
+
+        # --- BRepBuilderAPI: wires / faces / edges / transforms / copy ---
+        - symbol: BRepBuilderAPI_MakeEdge
+        - symbol: BRepBuilderAPI_MakeWire
+        - symbol: BRepBuilderAPI_MakeFace
+        - symbol: BRepBuilderAPI_Transform
+        - symbol: BRepBuilderAPI_Copy
+
+        # --- BRepPrimAPI: primitives, prism (extrude), revol ---
+        - symbol: BRepPrimAPI_MakeBox
+        - symbol: BRepPrimAPI_MakePrism
+        - symbol: BRepPrimAPI_MakeRevol
+
+        # --- BRepAlgoAPI: booleans (+ glue enum) ---
+        - symbol: BRepAlgoAPI_Fuse
+        - symbol: BRepAlgoAPI_Cut
+        - symbol: BRepAlgoAPI_Common
+        - symbol: BOPAlgo_GlueEnum
+
+        # --- BRepFilletAPI / BRepOffsetAPI: fillet, chamfer, sweep, loft, shell ---
+        - symbol: BRepFilletAPI_MakeFillet
+        - symbol: BRepFilletAPI_MakeChamfer
+        - symbol: ChFi3d_FilletShape
+        - symbol: BRepOffsetAPI_MakePipe
+        - symbol: BRepOffsetAPI_MakePipeShell
+        - symbol: BRepOffsetAPI_MakeThickSolid
+        - symbol: BRepOffsetAPI_ThruSections
+        - symbol: BRepOffset_Mode
+        # Per-face offset (Offset Faces tool): move only selected faces.
+        - symbol: BRepOffset_MakeOffset
+
+        # --- Properties / measurement / classification / checks ---
+        - symbol: GProp_GProps
+        - symbol: BRepGProp
+        - symbol: BRepExtrema_DistShapeShape
+        - symbol: BRepClass3d_SolidClassifier
+        - symbol: BRepCheck_Analyzer
+        - symbol: GCPnts_UniformDeflection
+
+        # --- Shape healing / upgrade ---
+        - symbol: ShapeFix_Shape
+        - symbol: ShapeAnalysis
+        - symbol: ShapeUpgrade_UnifySameDomain
+
+        # --- STEP / STL I/O + progress ---
+        - symbol: STEPControl_Reader
+        - symbol: STEPControl_Writer
+        - symbol: STEPControl_StepModelType
+        - symbol: IFSelect_ReturnStatus
+        - symbol: StlAPI
+        - symbol: Message_ProgressRange
+
+        # --- HLR: hidden-line removal for drawings ---
+        - symbol: HLRBRep_Algo
+        - symbol: HLRBRep_PolyAlgo
+        - symbol: HLRBRep_HLRToShape
+        - symbol: HLRAlgo_Projector
+
+    emccFlags:
+        - -O3
+        # ES6 module + adjustable memory, matching how opencascade.full is
+        # consumed by the worker (initOpenCascade + Comlink).
+        - -sEXPORT_ES6=1
+        - -sUSE_ES6_IMPORT_META=0
+        - -sEXPORTED_RUNTIME_METHODS=['FS']
+        - -sALLOW_MEMORY_GROWTH=1
+        - -sMAXIMUM_MEMORY=4GB
+        - -sUSE_FREETYPE=0

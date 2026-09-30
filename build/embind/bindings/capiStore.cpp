@@ -1,0 +1,84 @@
+// services/occt/build/embind/bindings/capiStore.cpp
+//
+// The shape table behind the handles (see capiStore.hxx for the contract).
+//
+// Who includes it: the embind link (see ../CMakeLists.txt).
+// What does NOT belong here: the C entry points and the embind registrations.
+
+#include "capiStore.hxx"
+
+#include <unordered_map>
+
+#include <TopExp.hxx>
+#include <TopAbs_ShapeEnum.hxx>
+
+namespace kapy_capi {
+
+namespace {
+constexpr uint32_t SERIAL_BITS = 24;
+constexpr uint32_t SERIAL_MASK = (1u << SERIAL_BITS) - 1;
+
+std::unordered_map<uint32_t, Entry> g_entries;
+std::vector<uint32_t> g_dropped;
+uint32_t g_epoch = 0;
+uint32_t g_serial = 0;
+}  // namespace
+
+uint32_t put(const TopoDS_Shape& shape) {
+    g_serial = (g_serial + 1) & SERIAL_MASK;
+    // 16.7 million shapes in one epoch would wrap the serial onto a live
+    // handle; skipping zero and live ones keeps "never aliases" true.
+    while (g_serial == 0 || g_entries.count((g_epoch << SERIAL_BITS) | g_serial)) {
+        g_serial = (g_serial + 1) & SERIAL_MASK;
+    }
+    const uint32_t handle = (g_epoch << SERIAL_BITS) | g_serial;
+    Entry& entry = g_entries[handle];
+    entry.shape = shape;
+    return handle;
+}
+
+Entry* find(uint32_t handle) {
+    auto it = g_entries.find(handle);
+    return it == g_entries.end() ? nullptr : &it->second;
+}
+
+uint32_t retain(uint32_t handle) {
+    Entry* entry = find(handle);
+    if (!entry) return 0;
+    return ++entry->refs;
+}
+
+int32_t release(uint32_t handle, bool queueDropped) {
+    auto it = g_entries.find(handle);
+    if (it == g_entries.end()) return -1;
+    if (--it->second.refs > 0) return static_cast<int32_t>(it->second.refs);
+    g_entries.erase(it);
+    if (queueDropped) g_dropped.push_back(handle);
+    return 0;
+}
+
+void ensureMaps(Entry& entry) {
+    if (entry.mapped) return;
+    TopExp::MapShapes(entry.shape, TopAbs_FACE, entry.faces);
+    TopExp::MapShapes(entry.shape, TopAbs_EDGE, entry.edges);
+    TopExp::MapShapes(entry.shape, TopAbs_VERTEX, entry.vertices);
+    entry.mapped = true;
+}
+
+void reset(bool bumpEpoch) {
+    g_entries.clear();
+    g_dropped.clear();
+    g_serial = 0;
+    if (bumpEpoch) g_epoch = (g_epoch + 1) & 0xff;
+}
+
+std::vector<uint32_t> takeDropped() {
+    std::vector<uint32_t> out;
+    out.swap(g_dropped);
+    return out;
+}
+
+uint32_t live() { return static_cast<uint32_t>(g_entries.size()); }
+uint32_t epoch() { return g_epoch; }
+
+}  // namespace kapy_capi

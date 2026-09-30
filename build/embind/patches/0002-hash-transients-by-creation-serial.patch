@@ -1,0 +1,142 @@
+From: Kapy CAD <dev@kapy.dev>
+Subject: [PATCH] Hash transients and shapes by creation serial, not by address
+
+OCCT hashes a handle by the object's address and a TopoDS_Shape by its
+TShape's address. The unordered maps (NCollection_Map / DataMap) iterate in
+bucket order, so every algorithm that walks one runs in an order the heap
+chose. BRepOffset_MakeOffset builds its offset faces walking a DataMap
+(MakeOffsetFaces' MapSF, and a dozen more), so MakeThickSolid on the same
+input, twice in one process, built the same shell with its faces made in a
+different order: different naming, different mesh, a volume a few ulps off.
+A fresh process always got the first answer; the second open of the same
+document got another.
+
+Every Standard_Transient now takes a serial from a counter when it is made,
+and the two hashes read that serial instead of the address. The host resets
+the counter before each call into the kernel (Kapy_SetSerialCounter, the
+embind binding in bindings/determinism.cpp), so an algorithm run on the same
+input numbers its objects the same way every time and its maps iterate in the
+same order. Equality is untouched (still identity); two live objects may
+share a serial, which only ever puts them in the same bucket.
+
+A type descriptor (Standard_Type) is made lazily, the first time anything
+asks for it, so it does not take a serial: it would shift every serial after
+it in whichever call happened to ask first.
+
+diff --git a/src/FoundationClasses/TKernel/Standard/Standard_Handle.hxx b/src/FoundationClasses/TKernel/Standard/Standard_Handle.hxx
+index 1dcd3a95..d6466038 100644
+--- a/src/FoundationClasses/TKernel/Standard/Standard_Handle.hxx
++++ b/src/FoundationClasses/TKernel/Standard/Standard_Handle.hxx
+@@ -456,7 +456,9 @@ struct hash<Handle(TheTransientType)>
+ {
+   size_t operator()(const Handle(TheTransientType)& theHandle) const noexcept
+   {
+-    return static_cast<size_t>(reinterpret_cast<std::uintptr_t>(theHandle.get()));
++    // Kapy patch: hash by creation serial, not by address (Standard_Transient::Serial).
++    const Standard_Transient* anEntity = theHandle.get();
++    return anEntity == nullptr ? 0 : anEntity->Serial();
+   }
+ };
+ } // namespace std
+diff --git a/src/FoundationClasses/TKernel/Standard/Standard_Transient.hxx b/src/FoundationClasses/TKernel/Standard/Standard_Transient.hxx
+index 87d67cf6..efce8ab2 100644
+--- a/src/FoundationClasses/TKernel/Standard/Standard_Transient.hxx
++++ b/src/FoundationClasses/TKernel/Standard/Standard_Transient.hxx
+@@ -49,13 +49,15 @@ public:
+ public:
+   //! Empty constructor
+   Standard_Transient()
+-      : myRefCount_(0)
++      : myRefCount_(0),
++        mySerial_(NextSerial())
+   {
+   }
+ 
+   //! Copy constructor -- does nothing
+   Standard_Transient(const Standard_Transient&)
+-      : myRefCount_(0)
++      : myRefCount_(0),
++        mySerial_(NextSerial())
+   {
+   }
+ 
+@@ -133,11 +135,40 @@ public:
+   //! Memory deallocator for transient classes
+   virtual void Delete() const { delete this; }
+ 
++public:
++  //!@name Creation serial (Kapy patch)
++
++  //! The number this object was created under. Maps hash a transient (and a
++  //! TopoDS_Shape, through its TShape) by it instead of by its address, so the
++  //! order a map iterates in is a function of the order objects were made,
++  //! never of where the allocator happened to put them.
++  size_t Serial() const noexcept { return mySerial_; }
++
++  //! The serial the next transient will be created under.
++  static size_t SerialCounter() noexcept { return serialCounter(); }
++
++  //! Restart the serials at theNext. A caller that runs one algorithm from a
++  //! known counter gets the same serials, and so the same map orders, every
++  //! time it runs it on the same input.
++  static void SetSerialCounter(size_t theNext) noexcept { serialCounter() = theNext; }
++
++private:
++  static size_t NextSerial() noexcept { return serialCounter()++; }
++
++  static size_t& serialCounter() noexcept
++  {
++    static size_t THE_COUNTER = 1;
++    return THE_COUNTER;
++  }
++
+ private:
+   //! Reference counter.
+   //! Note use of underscore, aimed to reduce probability
+   //! of conflict with names of members of derived classes.
+   std::atomic_int myRefCount_;
++
++  //! Creation serial, see Serial().
++  size_t mySerial_;
+ };
+ 
+ //! Definition of opencascade::handle<Standard_Transient> as typedef for compatibility
+diff --git a/src/FoundationClasses/TKernel/Standard/Standard_Type.cxx b/src/FoundationClasses/TKernel/Standard/Standard_Type.cxx
+index fe0e1c99..661548c8 100644
+--- a/src/FoundationClasses/TKernel/Standard/Standard_Type.cxx
++++ b/src/FoundationClasses/TKernel/Standard/Standard_Type.cxx
+@@ -143,7 +143,12 @@ Standard_Type* Standard_Type::Register(const std::type_info&             theInfo
+   strncpy(anInfoNameCopy, theInfo.name(), anInfoNameLen);
+   strncpy(aNameCopy, theName, aNameLen);
+ 
++  // Kapy patch: a type descriptor is made lazily, the first time a class is
++  // asked for it, so it must not take a serial — it would shift every serial
++  // after it in whichever algorithm happened to ask first.
++  const size_t aSerial = Standard_Transient::SerialCounter();
+   aType = new (aMemoryBlock) Standard_Type(anInfoNameCopy, aNameCopy, theSize, theParent);
++  Standard_Transient::SetSerialCounter(aSerial);
+ 
+   // Insert the descriptor into the registry
+   aRegistry.Bind(anInfoNameCopy, aType);
+diff --git a/src/ModelingData/TKBRep/TopoDS/TopoDS_Shape.hxx b/src/ModelingData/TKBRep/TopoDS/TopoDS_Shape.hxx
+index b9f5da9b..fabafba5 100644
+--- a/src/ModelingData/TKBRep/TopoDS/TopoDS_Shape.hxx
++++ b/src/ModelingData/TKBRep/TopoDS/TopoDS_Shape.hxx
+@@ -333,10 +333,13 @@ struct hash<TopoDS_Shape>
+ {
+   size_t operator()(const TopoDS_Shape& theShape) const noexcept
+   {
+-    const size_t aHL = std::hash<TopLoc_Location>{}(theShape.Location());
+-    return aHL == 0
+-             ? opencascade::hash(theShape.TShape().get())
+-             : opencascade::MurmurHash::hash_combine(theShape.TShape().get(), sizeof(void*), aHL);
++    // Kapy patch: hash the TShape by its creation serial, not by its address
++    // (Standard_Transient::Serial), so map orders do not depend on the heap.
++    const size_t          aHL     = std::hash<TopLoc_Location>{}(theShape.Location());
++    const TopoDS_TShape*  aTShape = theShape.TShape().get();
++    const size_t          aKey    = aTShape == nullptr ? 0 : aTShape->Serial();
++    return aHL == 0 ? opencascade::hash(aKey)
++                    : opencascade::MurmurHash::hash_combine(aKey, sizeof(aKey), aHL);
+   }
+ };
+ } // namespace std

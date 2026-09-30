@@ -1,0 +1,68 @@
+From: Kapy CAD <dev@kapy.dev>
+Subject: [PATCH] BRepGProp_Gauss: devirtualise the finite-domain Gauss integrand
+
+Under emscripten, every indirect call is wrapped in an `invoke_*` trampoline
+that leaves WebAssembly, runs a JS shim and re-enters. BRepGProp_Gauss calls
+its `add` / `mult` integrand through function pointers, once per Gauss point:
+a CPU profile of BRepGProp::SurfaceProperties showed 58% of the time in
+invoke_ddd + wasm-to-js + js-to-wasm, and only 18% in the integration itself.
+
+The pointers only ever take two values, and the second (AddInf / MultInf) is
+selected in checkBounds() for infinite domains. This adds a fast path that
+calls ::Add / ::Mult directly when the domain is finite; the body is the
+original one, verbatim, with the two calls devirtualised. Clang then inlines
+them and the trampolines disappear.
+
+Measured on OCCT 8.0 / emsdk 3.1.74, per face of BRepGProp::SurfaceProperties:
+  planar      335 us -> 119 us
+  cylindrical 921 us -> 253 us
+which restores parity with the opencascade.js 7.7 build (100 / 245 us).
+Native builds are unaffected: an indirect call there is just a call.
+
+diff --git a/src/ModelingAlgorithms/TKTopAlgo/BRepGProp/BRepGProp_Gauss.cxx b/src/ModelingAlgorithms/TKTopAlgo/BRepGProp/BRepGProp_Gauss.cxx
+index 853f746f..4e708669 100644
+--- a/src/ModelingAlgorithms/TKTopAlgo/BRepGProp/BRepGProp_Gauss.cxx
++++ b/src/ModelingAlgorithms/TKTopAlgo/BRepGProp/BRepGProp_Gauss.cxx
+@@ -385,6 +385,42 @@ void BRepGProp_Gauss::computeSInertiaOfElementaryPart(const gp_Pnt&
+                                                       const double              theWeight,
+                                                       BRepGProp_Gauss::Inertia& theOutInertia)
+ {
++  // KAPY PATCH: on the finite path, call ::Add / ::Mult directly instead of
++  // through the `add` / `mult` function pointers. Emscripten wraps every
++  // indirect call in an `invoke_ddd` trampoline (wasm -> JS -> wasm), and this
++  // routine runs once per Gauss point: those trampolines were 58% of
++  // SurfaceProperties. The body below is the original, verbatim, with the two
++  // calls devirtualised; the infinite-domain path keeps the pointers.
++  if (add == static_cast<BRepGProp_GaussFunc>(&::Add))
++  {
++    // ds - Jacobien (x, y, z) -> (u, v) = ||n||
++    const double ds = ::Mult(theNormal.Magnitude(), theWeight);
++    const double x  = ::Add(thePoint.X(), -theLocation.X());
++    const double y  = ::Add(thePoint.Y(), -theLocation.Y());
++    const double z  = ::Add(thePoint.Z(), -theLocation.Z());
++
++    theOutInertia.Mass = ::Add(theOutInertia.Mass, ds);
++
++    const double XdS = ::Mult(x, ds);
++    const double YdS = ::Mult(y, ds);
++    const double ZdS = ::Mult(z, ds);
++
++    theOutInertia.Ix  = ::Add(theOutInertia.Ix, XdS);
++    theOutInertia.Iy  = ::Add(theOutInertia.Iy, YdS);
++    theOutInertia.Iz  = ::Add(theOutInertia.Iz, ZdS);
++    theOutInertia.Ixy = ::Add(theOutInertia.Ixy, ::Mult(x, YdS));
++    theOutInertia.Iyz = ::Add(theOutInertia.Iyz, ::Mult(y, ZdS));
++    theOutInertia.Ixz = ::Add(theOutInertia.Ixz, ::Mult(x, ZdS));
++
++    const double XXdS = ::Mult(x, XdS);
++    const double YYdS = ::Mult(y, YdS);
++    const double ZZdS = ::Mult(z, ZdS);
++
++    theOutInertia.Ixx = ::Add(theOutInertia.Ixx, ::Add(YYdS, ZZdS));
++    theOutInertia.Iyy = ::Add(theOutInertia.Iyy, ::Add(XXdS, ZZdS));
++    theOutInertia.Izz = ::Add(theOutInertia.Izz, ::Add(XXdS, YYdS));
++    return;
++  }
+   // ds - Jacobien (x, y, z) -> (u, v) = ||n||
+   const double ds = mult(theNormal.Magnitude(), theWeight);
+   const double x  = add(thePoint.X(), -theLocation.X());
