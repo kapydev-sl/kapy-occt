@@ -21,6 +21,7 @@
 #include <ShapeUpgrade_UnifySameDomain.hxx>
 #include <TopExp.hxx>
 
+#include "capiProfile.hxx"
 #include "capiStore.hxx"
 #include "factsInternal.hxx"
 
@@ -34,22 +35,6 @@ constexpr double UNIFY_ANGULAR_TOL = 1e-4;
 // How far the boundary may seem to have moved (unifyFuse.ts).
 constexpr double MAX_BOUNDARY_SHIFT_MM = 1e-5;
 constexpr double MAX_AREA_DRIFT_REL = 1e-5;
-
-// A shape's three canonical maps.
-struct Mapped {
-    ShapeIndexedMap face, edge, vertex;
-    explicit Mapped(const TopoDS_Shape& shape) {
-        TopExp::MapShapes(shape, TopAbs_FACE, face);
-        TopExp::MapShapes(shape, TopAbs_EDGE, edge);
-        TopExp::MapShapes(shape, TopAbs_VERTEX, vertex);
-    }
-    kapy_facts::Maps view() const { return {&face, &edge, &vertex}; }
-};
-
-bool isValid(const TopoDS_Shape& shape) {
-    BRepCheck_Analyzer analyzer(shape, true, false);
-    return analyzer.IsValid();
-}
 
 struct Measure {
     double area, volume;
@@ -105,35 +90,91 @@ TopoDS_Shape tryUnify(const TopoDS_Shape& shape, const Mapped& before, uint32_t 
 
 }  // namespace
 
+Mapped::Mapped(const TopoDS_Shape& shape) {
+    TopExp::MapShapes(shape, TopAbs_FACE, face);
+    TopExp::MapShapes(shape, TopAbs_EDGE, edge);
+    TopExp::MapShapes(shape, TopAbs_VERTEX, vertex);
+}
+
+bool isValid(const TopoDS_Shape& shape) {
+    BRepCheck_Analyzer analyzer(shape, true, false);
+    return analyzer.IsValid();
+}
+
+namespace {
+
+// Store `shape` as the handle of table `id`: announced to the host, or kept
+// from it (an intermediate).
+uint32_t store(const TopoDS_Shape& shape, uint32_t id, bool announce) {
+    uint32_t handle;
+    if (announce) {
+        handle = putNative(shape, id);
+    } else {
+        handle = put(shape);
+        find(handle)->tableId = id;
+    }
+    kapy_facts::bind(id, "h_" + std::to_string(handle));
+    return handle;
+}
+
+}  // namespace
+
+uint32_t finishNamed(const TopoDS_Shape& shape, const Mapped& maps, uint32_t tableId,
+                     const std::string& bornIn, bool unify, bool announce) {
+    uint32_t id = tableId;
+    TopoDS_Shape stored = shape;
+    if (unify) {
+        uint32_t unifyId = 0;
+        const TopoDS_Shape unified = tryUnify(shape, maps, tableId, bornIn, unifyId);
+        if (!unified.IsNull()) {
+            kapy_facts::release(tableId);
+            stored = unified;
+            id = unifyId;
+        }
+    }
+    return store(stored, id, announce);
+}
+
+uint32_t finishHistory(const TopoDS_Shape& shape, BRepBuilderAPI_MakeShape& maker,
+                       Entry& previous, Entry* tool, const std::string& bornIn, bool unify,
+                       bool announce) {
+    if (previous.tableId == 0 || (tool && tool->tableId == 0)) {
+        throw OpError("an operand namer carries no naming table");
+    }
+    ensureMaps(previous);
+    if (tool) ensureMaps(*tool);
+    const Mapped maps(shape);
+    const uint32_t id = allocTable();
+    const kapy_facts::Maps before{&previous.faces, &previous.edges, &previous.vertices};
+    const kapy_facts::Maps with{tool ? &tool->faces : nullptr, tool ? &tool->edges : nullptr,
+                                tool ? &tool->vertices : nullptr};
+    kapy_facts::buildBooleanOfMaker(id, previous.tableId, tool ? tool->tableId : 0, maps.view(),
+                                    bornIn, maker, before, tool ? &with : nullptr);
+    return finishNamed(shape, maps, id, bornIn, unify, announce);
+}
+
+void dropNamed(uint32_t handle) {
+    Entry* entry = find(handle);
+    if (!entry) return;
+    const uint32_t table = entry->tableId;
+    release(handle, false);
+    if (table != 0) kapy_facts::release(table);
+}
+
 uint32_t finishSolid(const TopoDS_Shape& shape, const Finish& how) {
     const Mapped maps(shape);
     const uint32_t extrudeId = allocTable();
     kapy_facts::buildExtrude(extrudeId, how.previousTable, maps.view(), how.bornIn, how.rolesJson,
                              how.roleSuffix);
-    uint32_t tableId = extrudeId;
-    TopoDS_Shape stored = shape;
-    if (how.unify) {
-        uint32_t unifyId = 0;
-        const TopoDS_Shape unified = tryUnify(shape, maps, extrudeId, how.bornIn, unifyId);
-        if (!unified.IsNull()) {
-            kapy_facts::release(extrudeId);
-            stored = unified;
-            tableId = unifyId;
-        }
-    }
-    const uint32_t handle = putNative(stored, tableId);
-    kapy_facts::bind(tableId, "h_" + std::to_string(handle));
-    return handle;
+    return finishNamed(shape, maps, extrudeId, how.bornIn, how.unify);
 }
 
 uint32_t finishBox(const TopoDS_Shape& shape, const std::string& bornIn, double halfX,
-                   double halfY, double halfZ) {
+                   double halfY, double halfZ, bool announce) {
     const Mapped maps(shape);
     const uint32_t id = allocTable();
     kapy_facts::buildBox(id, maps.view(), bornIn, halfX, halfY, halfZ);
-    const uint32_t handle = putNative(shape, id);
-    kapy_facts::bind(id, "h_" + std::to_string(handle));
-    return handle;
+    return store(shape, id, announce);
 }
 
 }  // namespace kapy_capi

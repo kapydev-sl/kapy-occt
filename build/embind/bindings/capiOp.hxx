@@ -11,9 +11,11 @@
 // binding's op memo does. The seed is taken only on a miss for the same reason.
 //
 // The blob is read at a kernel address the host wrote into (`kapy_alloc`).
-// Only `makeBox` is not memoised, as in the binding.
+// Only `makeBox` and `splitSolids` are not memoised, as in the binding, and an
+// operation that has no result (an empty intersection) answers nothing and
+// remembers nothing, because the binding never remembers a null.
 //
-// Who includes it: capiPrism.cpp, capiLoft.cpp, capiPush.cpp.
+// Who includes it: the capi*.cpp build operations.
 // What does NOT belong here: what an operation builds.
 
 #pragma once
@@ -29,6 +31,7 @@
 #include "capiMemo.hxx"
 #include "capiProfile.hxx"
 #include "capiState.hxx"
+#include "capiStore.hxx"
 #include "kapy_capi.h"
 
 namespace kapy_capi {
@@ -40,28 +43,43 @@ inline gp_Vec prismVector(const double* d) {
     return gp_Vec(d[0], d[1], d[2] + (perturbation() == 3 ? PERTURB_SHIFT : 0.0));
 }
 
-// Run `body(Blob&)` (it answers the new handle)
-// as the operation `name`, seeded with `seed`; answers the handle as one u32
-// in the arena, or a failure code.
+// A failure that is the step's fault and not the kernel's: an operand of a
+// boolean that is not a solid. The host maps it to `ERR_KERNEL_NOT_SOLID`.
+struct NotSolidError : OpError {
+    explicit NotSolidError(const std::string& message) : OpError(message) {}
+};
+
+// A handle the store does not hold, worded as the binding words it.
+struct UnknownHandleError : OpError {
+    explicit UnknownHandleError(uint32_t handle)
+        : OpError("OCCT shape handle not found: h_" + std::to_string(handle)) {}
+};
+
+// The entry of `handle`, or the unknown-handle failure.
+inline Entry& need(uint32_t handle) {
+    Entry* entry = find(handle);
+    if (!entry) throw UnknownHandleError(handle);
+    return *entry;
+}
+
+// The first byte of a blob (the kind of an operation that has several), or 255
+// when there is none; the blob reader refuses such a blob afterwards.
+inline uint8_t firstByte(uint32_t ptr, uint32_t length) {
+    if (length == 0 || ptr == 0) return 255;
+    return *reinterpret_cast<const uint8_t*>(static_cast<uintptr_t>(ptr));
+}
+
+// Run `body()` (it answers a status) and turn whatever it throws into a code.
 template <typename Body>
-int32_t runOp(const char* name, size_t seed, uint32_t ptr, uint32_t length, Body&& body,
-              bool memoised = true) {
-    begin();
-    if (length != 0 && ptr == 0) return fail(KAPY_E_BAD_ARG, "build: no arguments at ptr");
-    const void* bytes = reinterpret_cast<const void*>(static_cast<uintptr_t>(ptr));
+int32_t guarded(const char* name, Body&& body) {
     try {
-        const std::string key =
-            std::string(name) + "|" + std::string(static_cast<const char*>(bytes), length);
-        uint32_t handle = memoised ? memoFind(key) : 0;
-        if (handle == 0) {
-            Standard_Transient::SetSerialCounter(seed);
-            Blob in(bytes, length);
-            handle = body(in);
-            if (memoised) memoStore(key, handle);
-        }
-        return answer(&handle, sizeof(handle));
+        return body();
     } catch (const BlobError& e) {
         return fail(KAPY_E_BAD_ARG, e.what());
+    } catch (const NotSolidError& e) {
+        return fail(KAPY_E_NOT_SOLID, e.what());
+    } catch (const UnknownHandleError& e) {
+        return fail(KAPY_E_UNKNOWN_HANDLE, e.what());
     } catch (const OpError& e) {
         return fail(KAPY_E_FAILED, e.what());
     } catch (const Standard_Failure& f) {
@@ -71,6 +89,44 @@ int32_t runOp(const char* name, size_t seed, uint32_t ptr, uint32_t length, Body
     } catch (...) {
         return fail(KAPY_E_FAILED, (std::string(name) + ": unknown failure").c_str());
     }
+}
+
+// Run `body(Blob&)` (it answers the new handle, or 0 for no result) as the
+// operation `name`, seeded with `seed`; answers the handle as one u32 in the
+// arena, nothing for no result, or a failure code.
+template <typename Body>
+int32_t runOp(const char* name, size_t seed, uint32_t ptr, uint32_t length, Body&& body,
+              bool memoised = true) {
+    begin();
+    if (length != 0 && ptr == 0) return fail(KAPY_E_BAD_ARG, "build: no arguments at ptr");
+    const void* bytes = reinterpret_cast<const void*>(static_cast<uintptr_t>(ptr));
+    return guarded(name, [&]() -> int32_t {
+        const std::string key =
+            std::string(name) + "|" + std::string(static_cast<const char*>(bytes), length);
+        uint32_t handle = memoised ? memoFind(key) : 0;
+        if (handle == 0) {
+            Standard_Transient::SetSerialCounter(seed);
+            Blob in(bytes, length);
+            handle = body(in);
+            if (handle == 0) return answerNothing();
+            if (memoised) memoStore(key, handle);
+        }
+        return answer(&handle, sizeof(handle));
+    });
+}
+
+// Run `body(Blob&)` as an operation that answers its own bytes (`splitSolids`):
+// seeded every time, never memoised.
+template <typename Body>
+int32_t runRaw(const char* name, size_t seed, uint32_t ptr, uint32_t length, Body&& body) {
+    begin();
+    if (length != 0 && ptr == 0) return fail(KAPY_E_BAD_ARG, "build: no arguments at ptr");
+    const void* bytes = reinterpret_cast<const void*>(static_cast<uintptr_t>(ptr));
+    return guarded(name, [&]() -> int32_t {
+        Standard_Transient::SetSerialCounter(seed);
+        Blob in(bytes, length);
+        return body(in);
+    });
 }
 
 }  // namespace kapy_capi

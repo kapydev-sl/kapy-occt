@@ -58,6 +58,10 @@ std::vector<Block> historyBlocks(int sourceKind, const emscripten::val& source,
 std::vector<Block> historyBlocksOfHistory(BRepTools_History& history, const Maps& operand,
                                           const Maps& result);
 
+// The same three blocks for the history of one maker held natively.
+std::vector<Block> historyBlocksOfMaker(BRepBuilderAPI_MakeShape& maker, const Maps& operand,
+                                        const Maps& result);
+
 // The ELEMENTS block of a result's maps.
 Block elementsOf(const Maps& maps, bool each);
 
@@ -89,6 +93,11 @@ void buildExtrude(uint32_t id, uint32_t previous, const Maps& result, const std:
 void buildBoolean(uint32_t id, uint32_t previous, uint32_t tool, const Maps& result,
                   const std::string& bornIn, int sourceKind, const emscripten::val& source,
                   const Maps& previousMaps, const Maps* toolMaps);
+// The boolean construction of a result whose operands' history a native maker
+// holds (the C operations); the same record `buildBoolean` writes.
+void buildBooleanOfMaker(uint32_t id, uint32_t previous, uint32_t tool, const Maps& result,
+                         const std::string& bornIn, BRepBuilderAPI_MakeShape& maker,
+                         const Maps& previousMaps, const Maps* toolMaps);
 void buildUnify(uint32_t id, uint32_t previous, const Maps& result, const std::string& bornIn,
                 const emscripten::val& history, const Maps& previousMaps);
 void buildUnifyOf(uint32_t id, uint32_t previous, const Maps& result, const std::string& bornIn,

@@ -35,6 +35,8 @@
 #define KAPY_E_BAD_ARG -2
 #define KAPY_E_FAILED -3
 #define KAPY_E_NOMEM -4
+// An operand of a boolean is not a solid (the host raises `ERR_KERNEL_NOT_SOLID`).
+#define KAPY_E_NOT_SOLID -5
 
 // Identity and self-check.
 KAPY_API int32_t kapy_abi_version() noexcept;
@@ -74,8 +76,9 @@ KAPY_API int32_t kapy_facts_take() noexcept;
 // host into the kernel's memory) holding the arguments, and answers the new
 // handle as one u32 in the arena. The kernel names the shape (the facts it
 // appends to the log are the ones the JSON transport records) and stores it, so
-// the handle comes back ready to use. The blob layouts are in capiPrism.cpp,
-// capiLoft.cpp and capiPush.cpp.
+// the handle comes back ready to use (an empty arena means the operation has
+// no result, as an empty intersection). The blob layouts are in the capi*.cpp
+// file of each function.
 KAPY_API int32_t kapy_extrude_profile(uint32_t ptr, uint32_t length) noexcept;
 KAPY_API int32_t kapy_extrude_face_with_holes(uint32_t ptr, uint32_t length) noexcept;
 KAPY_API int32_t kapy_extrude_face(uint32_t ptr, uint32_t length) noexcept;
@@ -84,3 +87,13 @@ KAPY_API int32_t kapy_drafted_sections(uint32_t ptr, uint32_t length) noexcept;
 KAPY_API int32_t kapy_twisted_profile(uint32_t ptr, uint32_t length) noexcept;
 KAPY_API int32_t kapy_compound(uint32_t ptr, uint32_t length) noexcept;
 KAPY_API int32_t kapy_make_box(uint32_t ptr, uint32_t length) noexcept;
+
+// Booleans, the plane trim, the multi-solid fuse, rigid transforms and pattern
+// instancing. `kapy_split_solids` answers `u32 count` and then, per piece, its
+// handle, its volume and its centroid (`u32, f64, f64 x3`), largest first.
+KAPY_API int32_t kapy_boolean(uint32_t ptr, uint32_t length) noexcept;
+KAPY_API int32_t kapy_fuse_many(uint32_t ptr, uint32_t length) noexcept;
+KAPY_API int32_t kapy_trim_by_plane(uint32_t ptr, uint32_t length) noexcept;
+KAPY_API int32_t kapy_split_solids(uint32_t ptr, uint32_t length) noexcept;
+KAPY_API int32_t kapy_transform(uint32_t ptr, uint32_t length) noexcept;
+KAPY_API int32_t kapy_instance_body(uint32_t ptr, uint32_t length) noexcept;
