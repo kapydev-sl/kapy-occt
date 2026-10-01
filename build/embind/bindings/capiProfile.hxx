@@ -8,7 +8,8 @@
 // settled by the caller and arrives as plain numbers, so nothing here depends
 // on the kernel's libm agreeing with the core's.
 //
-// Who includes it: capiProfile.cpp, capiPrism.cpp, capiLoft.cpp, capiPush.cpp.
+// Who includes it: capiProfile.cpp, capiPrism.cpp, capiLoft.cpp, capiPush.cpp,
+// capiRevolve.cpp, capiSweep.cpp.
 // What does NOT belong here: the prism and loft makers, the naming facts.
 
 #pragma once
@@ -19,6 +20,7 @@
 #include <vector>
 
 #include <TopoDS_Edge.hxx>
+#include <TopoDS_Shape.hxx>
 #include <TopoDS_Vertex.hxx>
 #include <TopoDS_Wire.hxx>
 
@@ -80,5 +82,26 @@ void verifyWireOrder(const TopoDS_Wire& wire, size_t expected);
 
 // The vertices BRepTools_WireExplorer walks over `wire`, in order.
 std::vector<TopoDS_Vertex> wireVertices(const TopoDS_Wire& wire);
+
+// The shapes of a list of edges (or vertices), as the role facts hold them.
+inline std::vector<TopoDS_Shape> asShapes(const std::vector<TopoDS_Edge>& edges) {
+    return std::vector<TopoDS_Shape>(edges.begin(), edges.end());
+}
+inline std::vector<TopoDS_Shape> asShapes(const std::vector<TopoDS_Vertex>& verts) {
+    return std::vector<TopoDS_Shape>(verts.begin(), verts.end());
+}
+
+// One loop of a face with holes: its wire (reversed when the loop runs the
+// wrong way for its role), the edges in the order they were added, and their
+// segments in that order.
+struct HoleLoop {
+    TopoDS_Wire wire;
+    std::vector<TopoDS_Edge> edges;
+    std::vector<Segment> ordered;
+};
+
+// Read one loop (`u8 reverse`, segments) and build it as the face-with-holes
+// builders do: edges, reversed when asked, chained, checked.
+HoleLoop buildHoleLoop(Blob& in, const Plane& plane);
 
 }  // namespace kapy_capi

@@ -10,6 +10,8 @@
 
 #include "capiProfile.hxx"
 
+#include <algorithm>
+
 #include <BRepBuilderAPI_MakeEdge.hxx>
 #include <BRepBuilderAPI_MakeWire.hxx>
 #include <BRepTools_WireExplorer.hxx>
@@ -18,6 +20,7 @@
 #include <Geom_Curve.hxx>
 #include <GeomAbs_Shape.hxx>
 #include <TColgp_Array1OfPnt.hxx>
+#include <TopoDS.hxx>
 #include <gp_Ax2.hxx>
 #include <gp_Circ.hxx>
 #include <gp_Dir.hxx>
@@ -188,6 +191,22 @@ std::vector<TopoDS_Vertex> wireVertices(const TopoDS_Wire& wire) {
         explorer.Next();
     }
     return out;
+}
+
+HoleLoop buildHoleLoop(Blob& in, const Plane& plane) {
+    const bool reverse = in.u8() != 0;
+    std::vector<Segment> segments = readSegments(in);
+    std::vector<TopoDS_Edge> edges = buildLoopEdges(segments, plane, plane.origin);
+    if (reverse) {
+        std::reverse(edges.begin(), edges.end());
+        std::reverse(segments.begin(), segments.end());
+    }
+    BRepBuilderAPI_MakeWire wireMaker;
+    for (const TopoDS_Edge& e : edges) wireMaker.Add(e);
+    TopoDS_Wire wire = wireMaker.Wire();
+    if (reverse) wire = TopoDS::Wire(wire.Reversed());
+    verifyWireOrder(wire, edges.size());
+    return {wire, std::move(edges), std::move(segments)};
 }
 
 }  // namespace kapy_capi

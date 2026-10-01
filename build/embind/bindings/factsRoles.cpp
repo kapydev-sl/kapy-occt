@@ -148,6 +148,23 @@ std::string prismRolesOf(BRepBuilderAPI_MakeShape& maker, const TopoDS_Shape& sh
            "}";
 }
 
+std::string revolveRolesOf(BRepBuilderAPI_MakeShape& maker, const TopoDS_Shape& shape,
+                           const std::vector<Loop>& loops, bool withHoles, bool isFull) {
+    const ResultMaps m = mapsOfShape(shape);
+    return std::string("{\"kind\":\"revolve\",\"withHoles\":") + jbool(withHoles) +
+           ",\"isFull\":" + jbool(isFull) + ",\"counts\":" + countsJson(m) +
+           ",\"caps\":" + (isFull ? std::string("null") : capsJson(maker, m.face)) +
+           ",\"loops\":" + loopsJson(maker, loops, m) + "}";
+}
+
+std::string sweepRolesOf(BRepBuilderAPI_MakeShape& maker, const TopoDS_Shape& shape,
+                         const std::vector<Loop>& loops, bool withHoles) {
+    const ResultMaps m = mapsOfShape(shape);
+    return std::string("{\"kind\":\"sweep\",\"withHoles\":") + jbool(withHoles) +
+           ",\"counts\":" + countsJson(m) + ",\"caps\":" + capsJson(maker, m.face) +
+           ",\"loops\":" + loopsJson(maker, loops, m) + "}";
+}
+
 std::string sweptRoles(const std::string& kind, const val& makerVal, const TopoDS_Shape& shape,
                        const val& loopsVal, bool withHoles, bool isFull,
                        const std::string& sourcesJson, bool hasDirection, double dx, double dy,

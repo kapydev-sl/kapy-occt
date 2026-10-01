@@ -55,14 +55,6 @@ void readDirection(Blob& in, double* d) {
 
 bool isZeroVector(const double* d) { return !(std::hypot(std::hypot(d[0], d[1]), d[2]) > 0); }
 
-std::vector<TopoDS_Shape> asShapes(const std::vector<TopoDS_Edge>& edges) {
-    return std::vector<TopoDS_Shape>(edges.begin(), edges.end());
-}
-
-std::vector<TopoDS_Shape> asShapes(const std::vector<TopoDS_Vertex>& verts) {
-    return std::vector<TopoDS_Shape>(verts.begin(), verts.end());
-}
-
 // The JSON array of each segment's source id (null for none), the `sources`
 // row of one loop.
 std::string sourcesOf(const std::vector<Segment>& segments) {
@@ -107,35 +99,6 @@ KAPY_API int32_t kapy_extrude_profile(uint32_t ptr, uint32_t length) noexcept {
         return finishSolid(shape, how);
     });
 }
-
-namespace {
-
-// One loop of a face with holes: its wire (reversed when the loop runs the
-// wrong way for its role), the edges in the order they were added, and their
-// segments in that order.
-struct HoleLoop {
-    TopoDS_Wire wire;
-    std::vector<TopoDS_Edge> edges;
-    std::vector<Segment> ordered;
-};
-
-HoleLoop buildHoleLoop(Blob& in, const Plane& plane) {
-    const bool reverse = in.u8() != 0;
-    std::vector<Segment> segments = readSegments(in);
-    std::vector<TopoDS_Edge> edges = buildLoopEdges(segments, plane, plane.origin);
-    if (reverse) {
-        std::reverse(edges.begin(), edges.end());
-        std::reverse(segments.begin(), segments.end());
-    }
-    BRepBuilderAPI_MakeWire wireMaker;
-    for (const TopoDS_Edge& e : edges) wireMaker.Add(e);
-    TopoDS_Wire wire = wireMaker.Wire();
-    if (reverse) wire = TopoDS::Wire(wire.Reversed());
-    verifyWireOrder(wire, edges.size());
-    return {wire, std::move(edges), std::move(segments)};
-}
-
-}  // namespace
 
 KAPY_API int32_t kapy_extrude_face_with_holes(uint32_t ptr, uint32_t length) noexcept {
     return runOp("extrudeFaceWithHolesShape", SEED_EXTRUDE_WITH_HOLES, ptr, length, [](Blob& in) {

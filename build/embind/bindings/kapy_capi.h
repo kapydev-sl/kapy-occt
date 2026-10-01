@@ -37,6 +37,10 @@
 #define KAPY_E_NOMEM -4
 // An operand of a boolean is not a solid (the host raises `ERR_KERNEL_NOT_SOLID`).
 #define KAPY_E_NOT_SOLID -5
+// The kernel will not answer this input and the core must: the JSON path
+// builds it, or raises the fault it owns for it (a loft section that is a face
+// with holes). Nothing was stored. Additive: the ABI version does not move.
+#define KAPY_E_DECLINED -6
 
 // Identity and self-check.
 KAPY_API int32_t kapy_abi_version() noexcept;
@@ -87,6 +91,16 @@ KAPY_API int32_t kapy_drafted_sections(uint32_t ptr, uint32_t length) noexcept;
 KAPY_API int32_t kapy_twisted_profile(uint32_t ptr, uint32_t length) noexcept;
 KAPY_API int32_t kapy_compound(uint32_t ptr, uint32_t length) noexcept;
 KAPY_API int32_t kapy_make_box(uint32_t ptr, uint32_t length) noexcept;
+
+// Revolves, pipe sweeps, lofts through sections (profiles or faces of bodies),
+// and the helical sweeps (the helix feature and the thread).
+KAPY_API int32_t kapy_revolve_profile(uint32_t ptr, uint32_t length) noexcept;
+KAPY_API int32_t kapy_revolve_face_with_holes(uint32_t ptr, uint32_t length) noexcept;
+KAPY_API int32_t kapy_sweep_profile(uint32_t ptr, uint32_t length) noexcept;
+KAPY_API int32_t kapy_sweep_face_with_holes(uint32_t ptr, uint32_t length) noexcept;
+KAPY_API int32_t kapy_loft(uint32_t ptr, uint32_t length) noexcept;
+KAPY_API int32_t kapy_helical_sweep(uint32_t ptr, uint32_t length) noexcept;
+KAPY_API int32_t kapy_thread_sweep(uint32_t ptr, uint32_t length) noexcept;
 
 // Booleans, the plane trim, the multi-solid fuse, rigid transforms and pattern
 // instancing. `kapy_split_solids` answers `u32 count` and then, per piece, its

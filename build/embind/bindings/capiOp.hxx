@@ -49,6 +49,14 @@ struct NotSolidError : OpError {
     explicit NotSolidError(const std::string& message) : OpError(message) {}
 };
 
+// An input the kernel can build only by raising a fault the core owns (a loft
+// section that is a face with holes): the call answers `KAPY_E_DECLINED`, the
+// host takes the JSON path, and the binding raises it there. Nothing has been
+// stored when it is thrown.
+struct DeclinedError : OpError {
+    explicit DeclinedError(const std::string& message) : OpError(message) {}
+};
+
 // A handle the store does not hold, worded as the binding words it.
 struct UnknownHandleError : OpError {
     explicit UnknownHandleError(uint32_t handle)
@@ -80,6 +88,8 @@ int32_t guarded(const char* name, Body&& body) {
         return fail(KAPY_E_NOT_SOLID, e.what());
     } catch (const UnknownHandleError& e) {
         return fail(KAPY_E_UNKNOWN_HANDLE, e.what());
+    } catch (const DeclinedError& e) {
+        return fail(KAPY_E_DECLINED, e.what());
     } catch (const OpError& e) {
         return fail(KAPY_E_FAILED, e.what());
     } catch (const Standard_Failure& f) {

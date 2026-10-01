@@ -83,6 +83,13 @@ std::string prismRolesOf(BRepBuilderAPI_MakeShape& maker, const TopoDS_Shape& sh
                          const std::vector<Loop>& loops, bool withHoles,
                          const std::string& sourcesJson, const double* direction);
 
+// The role facts of a revolve and of a sweep along a path, given their loops
+// natively; the JSON is the one `sweptRoles` writes for those kinds.
+std::string revolveRolesOf(BRepBuilderAPI_MakeShape& maker, const TopoDS_Shape& shape,
+                           const std::vector<Loop>& loops, bool withHoles, bool isFull);
+std::string sweepRolesOf(BRepBuilderAPI_MakeShape& maker, const TopoDS_Shape& shape,
+                         const std::vector<Loop>& loops, bool withHoles);
+
 // The role facts of index roles with a fixed prefix.
 std::string indexedRoles(const std::string& prefix, const TopoDS_Shape& shape);
 
