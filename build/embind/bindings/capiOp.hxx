@@ -57,6 +57,22 @@ struct DeclinedError : OpError {
     explicit DeclinedError(const std::string& message) : OpError(message) {}
 };
 
+// Run `body()` and answer what it answers; whatever OCCT or the standard
+// library raises in it is a decline. For the operations whose binding turns a
+// kernel failure into words of its own (a blend's `{ error }`, the decoded
+// exception of a shell): the host redoes the call on the JSON path, which words
+// the failure the way it always did. Nothing is stored when `body` throws.
+template <typename Body>
+auto declining(const char* what, Body&& body) -> decltype(body()) {
+    try {
+        return body();
+    } catch (const DeclinedError&) {
+        throw;
+    } catch (...) {
+        throw DeclinedError(what);
+    }
+}
+
 // A handle the store does not hold, worded as the binding words it.
 struct UnknownHandleError : OpError {
     explicit UnknownHandleError(uint32_t handle)

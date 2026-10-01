@@ -111,3 +111,13 @@ KAPY_API int32_t kapy_trim_by_plane(uint32_t ptr, uint32_t length) noexcept;
 KAPY_API int32_t kapy_split_solids(uint32_t ptr, uint32_t length) noexcept;
 KAPY_API int32_t kapy_transform(uint32_t ptr, uint32_t length) noexcept;
 KAPY_API int32_t kapy_instance_body(uint32_t ptr, uint32_t length) noexcept;
+
+// Blend, shell and offset: one fillet or chamfer build, a thick solid through a
+// ladder handed over as data, an offset of a whole solid and an offset of the
+// picked faces. Each names its result and answers its handle; a refusal
+// answers `KAPY_E_DECLINED` and stores nothing, so the host redoes the call on
+// the JSON path, which words the failure.
+KAPY_API int32_t kapy_blend_attempt(uint32_t ptr, uint32_t length) noexcept;
+KAPY_API int32_t kapy_thick_solid(uint32_t ptr, uint32_t length) noexcept;
+KAPY_API int32_t kapy_offset_solid(uint32_t ptr, uint32_t length) noexcept;
+KAPY_API int32_t kapy_offset_faces(uint32_t ptr, uint32_t length) noexcept;

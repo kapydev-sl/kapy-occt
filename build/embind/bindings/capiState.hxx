@@ -30,7 +30,8 @@ int32_t answerNothing();
 // 0 none, 1 the volume answer is zeroed, 2 the bounds answer is shifted, 3 every
 // prism sweeps a metre further along z, 4 every cut runs as a common, 5 every
 // translation goes a metre further along x, 6 every revolve turns around an
-// axis a metre further along x.
+// axis a metre further along x, 7 every blend runs at half its radius or
+// distance.
 int perturbation();
 void setPerturbation(int mode);
 
