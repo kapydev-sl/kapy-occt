@@ -12,7 +12,7 @@
 // Everything here is in an unnamed namespace: each translation unit that
 // includes it has its own copy, so the instantiations never clash.
 //
-// Who includes this: exactBrep.cpp and exactGeometry.cpp.
+// Who includes this: exactBrepCore.cpp and exactGeometry.cpp.
 // What does NOT belong here: what is written, or when (those two files).
 
 #pragma once

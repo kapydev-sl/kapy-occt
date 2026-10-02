@@ -9,8 +9,8 @@
 // named by enumeration, every face pairing back to an input face recording it
 // as its provenance (`buildOffsetFaces`).
 //
-// A refusal answers `KAPY_E_DECLINED` and stores nothing, so the host redoes
-// it on the JSON path and the binding words the failure.
+// A refusal answers `KAPY_E_FAILED` (`KAPY_E_NO_RESULT` when no attempt built)
+// and stores nothing.
 //
 // Blob (little-endian; see capiBlob.hxx, and the writer in
 // engine/crates/kpy-core/src/kernel/capi_build/encode_k7.rs):
@@ -88,32 +88,31 @@ uint32_t offsetFacesOf(Blob& in) {
     if (!in.done()) throw BlobError();
 
     Entry& prev = need(previous);
-    return declining("offset faces: the kernel raised", [&]() -> uint32_t {
-        ensureMaps(prev);
-        if (!(std::fabs(offset) > 0)) throw DeclinedError("offset faces: distance must be non-zero");
-        if (indices.empty()) throw DeclinedError("offset faces: no faces selected");
-        for (const uint32_t idx : indices) {
-            if (static_cast<int>(idx) >= prev.faces.Extent()) {
-                throw DeclinedError("offset faces: index out of range");
-            }
+    ensureMaps(prev);
+    if (!(std::fabs(offset) > 0)) throw OpError("offset: distance must be non-zero");
+    if (indices.empty()) throw OpError("offset faces: no faces selected");
+    for (const uint32_t idx : indices) {
+        if (static_cast<int>(idx) >= prev.faces.Extent()) {
+            throw OpError("offset faces: index " + std::to_string(idx) + " out of range [0, " +
+                          std::to_string(prev.faces.Extent() - 1) + "]");
         }
-        std::vector<TopoDS_Face> faces;
-        for (const uint32_t idx : indices) {
-            faces.push_back(TopoDS::Face(prev.faces.FindKey(static_cast<int>(idx) + 1)));
-        }
-        TopoDS_Shape result;
-        for (const bool intersection : intersections) {
-            result = buildOffset(prev.shape, faces, offset, intersection);
-            if (!result.IsNull()) break;
-        }
-        if (result.IsNull() && slab) result = offsetFacesBySlabs(prev.shape, faces, offset);
-        if (result.IsNull()) throw DeclinedError("offset faces: no attempt built");
+    }
+    std::vector<TopoDS_Face> faces;
+    for (const uint32_t idx : indices) {
+        faces.push_back(TopoDS::Face(prev.faces.FindKey(static_cast<int>(idx) + 1)));
+    }
+    TopoDS_Shape result;
+    for (const bool intersection : intersections) {
+        result = buildOffset(prev.shape, faces, offset, intersection);
+        if (!result.IsNull()) break;
+    }
+    if (result.IsNull() && slab) result = offsetFacesBySlabs(prev.shape, faces, offset);
+    if (result.IsNull()) throw NoResultError("no offset-faces attempt built", 0);
 
-        const Mapped maps(result);
-        const uint32_t id = allocTable();
-        kapy_facts::buildOffsetFaces(id, prev.tableId, maps.view(), bornIn, offset);
-        return finishNamed(result, maps, id, bornIn, /*unify=*/true);
-    });
+    const Mapped maps(result);
+    const uint32_t id = allocTable();
+    kapy_facts::buildOffsetFaces(id, prev.tableId, maps.view(), bornIn, offset);
+    return finishNamed(result, maps, id, bornIn, /*unify=*/true);
 }
 
 }  // namespace

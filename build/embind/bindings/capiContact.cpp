@@ -116,7 +116,7 @@ KAPY_API int32_t kapy_shapes_intersect(uint32_t ptr, uint32_t length) noexcept {
     return ask("shapesIntersect", SEED_INTERSECT, ptr, length, [](Blob& in, Out& out) {
         Entry& a = need(in.u32());
         Entry& b = need(in.u32());
-        const bool touch = declining("shapesIntersect", [&] { return shapesIntersect(a.shape, b.shape); });
+        const bool touch = shapesIntersect(a.shape, b.shape);
         // The red control: no two bodies ever touch, so nothing auto-joins.
         out.u8(touch && perturbation() != 8 ? 1 : 0);
     });

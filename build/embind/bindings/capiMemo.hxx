@@ -2,10 +2,9 @@
 //
 // The memo of the C build operations: a pure build asked twice with the same
 // arguments answers the handle of the first while that handle is alive, which
-// is what the TypeScript binding's op memo (`workers/occt/opMemo.ts`) does for
-// the JSON route. The key is the operation and the exact bytes of its
+// is what the regen has always relied on. The key is the operation and the exact bytes of its
 // arguments; a hit mints nothing and runs nothing (no serial seeding either),
-// so a repeated regen leaves the kernel exactly as the TypeScript route did.
+// so a repeated regen leaves the kernel exactly as the first one did.
 //
 // Who includes it: capiStore.cpp (clears it on reset), capiFinish.cpp.
 // What does NOT belong here: the operations, the store.

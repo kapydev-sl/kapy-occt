@@ -8,10 +8,8 @@
 //
 // A handle the store does not hold is the unknown-handle failure (code -1,
 // worded as the binding words it). Anything OCCT or the standard library
-// raises while the kernel works is a DECLINE (`KAPY_E_DECLINED`): the host
-// redoes the question over JSON, which raises or words it the way it always
-// did. The lookup is outside the decline on purpose, so an unknown handle
-// stays an unknown handle.
+// raises while the kernel works is `KAPY_E_FAILED`, worded `<type>,<message>`
+// for an OCCT exception; `runRaw` maps every failure, so a body only throws.
 //
 // Who includes it: the capi*.cpp question files.
 // What does NOT belong here: what any question measures.
@@ -60,8 +58,8 @@ private:
 };
 
 // Run `body(Blob&, Out&)` as the question `name` seeded with `seed`, and answer
-// what it wrote. `body` reads its own handles with `need()` first (outside any
-// decline), then does the kernel's work inside `declining(name, ...)`.
+// what it wrote. `body` reads its handles with `need()` and does the kernel's
+// work; whatever it throws is a failure code.
 template <typename Body>
 int32_t ask(const char* name, size_t seed, uint32_t ptr, uint32_t length, Body&& body) {
     return runRaw(name, seed, ptr, length, [&](Blob& in) -> int32_t {

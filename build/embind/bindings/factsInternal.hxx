@@ -62,6 +62,11 @@ std::vector<Block> historyBlocksOfHistory(BRepTools_History& history, const Maps
 std::vector<Block> historyBlocksOfMaker(BRepBuilderAPI_MakeShape& maker, const Maps& operand,
                                         const Maps& result);
 
+// The same three blocks for several makers behind one compound (a body shelled
+// solid by solid): the first maker with a non-empty answer names each element.
+std::vector<Block> historyBlocksOfMakers(const std::vector<BRepBuilderAPI_MakeShape*>& makers,
+                                         const Maps& operand, const Maps& result);
+
 // The ELEMENTS block of a result's maps.
 Block elementsOf(const Maps& maps, bool each);
 
@@ -105,6 +110,11 @@ void buildBoolean(uint32_t id, uint32_t previous, uint32_t tool, const Maps& res
 void buildBooleanOfMaker(uint32_t id, uint32_t previous, uint32_t tool, const Maps& result,
                          const std::string& bornIn, BRepBuilderAPI_MakeShape& maker,
                          const Maps& previousMaps, const Maps* toolMaps);
+// The same record for a result several makers built between them.
+void buildBooleanOfMakers(uint32_t id, uint32_t previous, const Maps& result,
+                          const std::string& bornIn,
+                          const std::vector<BRepBuilderAPI_MakeShape*>& makers,
+                          const Maps& previousMaps);
 void buildUnify(uint32_t id, uint32_t previous, const Maps& result, const std::string& bornIn,
                 const emscripten::val& history, const Maps& previousMaps);
 void buildUnifyOf(uint32_t id, uint32_t previous, const Maps& result, const std::string& bornIn,

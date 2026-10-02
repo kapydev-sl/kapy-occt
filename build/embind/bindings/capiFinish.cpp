@@ -153,6 +153,18 @@ uint32_t finishHistory(const TopoDS_Shape& shape, BRepBuilderAPI_MakeShape& make
     return finishNamed(shape, maps, id, bornIn, unify, announce);
 }
 
+uint32_t finishHistoryOfMakers(const TopoDS_Shape& shape,
+                               const std::vector<BRepBuilderAPI_MakeShape*>& makers,
+                               Entry& previous, const std::string& bornIn, bool unify) {
+    if (previous.tableId == 0) throw OpError("an operand namer carries no naming table");
+    ensureMaps(previous);
+    const Mapped maps(shape);
+    const uint32_t id = allocTable();
+    const kapy_facts::Maps before{&previous.faces, &previous.edges, &previous.vertices};
+    kapy_facts::buildBooleanOfMakers(id, previous.tableId, maps.view(), bornIn, makers, before);
+    return finishNamed(shape, maps, id, bornIn, unify, true);
+}
+
 void dropNamed(uint32_t handle) {
     Entry* entry = find(handle);
     if (!entry) return;

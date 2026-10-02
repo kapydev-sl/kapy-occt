@@ -17,8 +17,9 @@ namespace kapy_capi {
 // Begin a call: clears the last error so `kapy_error()` reads this call's.
 void begin();
 
-// Record a failure and answer its code, for `return fail(...)`.
-int32_t fail(int32_t code, const char* message);
+// Record a failure and answer its code, for `return fail(...)`. `arg` is the
+// number that rides beside the code (`kapy_error_arg`).
+int32_t fail(int32_t code, const char* message, int32_t arg = 0);
 
 // Replace the arena's bytes with `bytes` (copied) and answer KAPY_OK.
 int32_t answer(const void* bytes, size_t length);

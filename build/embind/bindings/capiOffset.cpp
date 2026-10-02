@@ -9,9 +9,8 @@
 // solid), the winner is oriented forward and has its tolerance capped, and
 // it is named through the operator's history.
 //
-// A refusal (no attempt built, a zero distance) answers `KAPY_E_DECLINED` and
-// stores nothing, so the host redoes it on the JSON path and the binding words
-// the failure.
+// A refusal (no attempt built, a zero distance) answers `KAPY_E_FAILED` in the
+// words the product reads, and stores nothing.
 //
 // Blob (little-endian; see capiBlob.hxx, and the writer in
 // engine/crates/kpy-core/src/kernel/capi_build/encode_k7.rs):
@@ -120,15 +119,13 @@ uint32_t offsetOf(Blob& in) {
     if (!in.done()) throw BlobError();
 
     Entry& prev = need(previous);
-    return declining("offset: the kernel raised", [&]() -> uint32_t {
-        if (!(std::fabs(offset) > 0)) throw DeclinedError("offset: distance must be non-zero");
-        Made made = arc ? attemptByJoin(prev.shape, offset, true) : attemptSimple(prev.shape, offset);
-        if (!arc && !made.op) made = attemptByJoin(prev.shape, offset, false);
-        if (!made.op) throw DeclinedError("offset: no attempt built");
-        const TopoDS_Shape result = forward(made.result);
-        limitTolerance(result, TOLERANCE_CAP);
-        return finishHistory(result, *made.op, prev, nullptr, bornIn, /*unify=*/true);
-    });
+    if (!(std::fabs(offset) > 0)) throw OpError("offset: distance must be non-zero");
+    Made made = arc ? attemptByJoin(prev.shape, offset, true) : attemptSimple(prev.shape, offset);
+    if (!arc && !made.op) made = attemptByJoin(prev.shape, offset, false);
+    if (!made.op) throw OpError("Offset failed — the distance may be larger than a local feature of the part. Try a smaller distance.");
+    const TopoDS_Shape result = forward(made.result);
+    limitTolerance(result, TOLERANCE_CAP);
+    return finishHistory(result, *made.op, prev, nullptr, bornIn, /*unify=*/true);
 }
 
 }  // namespace

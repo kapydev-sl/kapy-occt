@@ -10,8 +10,8 @@
 //   sweep_ray   bornIn, u32 previous, f64[3] unit direction, f64 length
 //
 // Anything the binding raises (no triangulation, no prism, a fuse that does
-// not converge, a length that is not positive) is a decline, so the host asks
-// the JSON route, which words it.
+// not converge, a length that is not positive) is a failure (`KAPY_E_FAILED`), worded
+// for the user.
 //
 // Who includes it: the embind link (see ../CMakeLists.txt).
 // What does NOT belong here: the face reading and prisms
@@ -55,7 +55,7 @@ std::vector<TopoDS_Shape> prismsOf(const TopoDS_Shape& shape, const double dir[3
         const TopoDS_Shape face = explorer.Current();
         std::vector<SweepTri> tris;
         if (!sweepFaceTriangles(face, false, tris)) {
-            throw DeclinedError("sweepRay: face has no triangulation");
+            throw OpError("sweepRay: face has no triangulation");
         }
         const FaceClass cls = sweepClassify(tris, dir);
         if (cls == FaceClass::kParallel) continue;
@@ -102,11 +102,11 @@ std::vector<TopoDS_Shape> prismsOf(const TopoDS_Shape& shape, const double dir[3
 namespace kapy_capi {
 
 SweepResult sweepRayCore(const TopoDS_Shape& shape, const double dir[3], double length) {
-    if (!(length > 0)) throw DeclinedError("sweepRay: length must be positive");
+    if (!(length > 0)) throw OpError("sweepRay: length must be positive");
     const double reach = perturbation() == PERTURB_SHORT_SWEEP ? length * SHORT_SWEEP_FACTOR : length;
     const gp_Vec vec(dir[0] * reach, dir[1] * reach, dir[2] * reach);
     const std::vector<TopoDS_Shape> prisms = prismsOf(shape, dir, vec);
-    if (prisms.empty()) throw DeclinedError("sweepRay: no face produced a prism");
+    if (prisms.empty()) throw OpError("sweepRay: no face produced a prism");
 
     // Multi-argument fuse: the part as the argument, every prism a tool.
     TopTools_ListOfShape args;
@@ -125,9 +125,9 @@ SweepResult sweepRayCore(const TopoDS_Shape& shape, const double dir[3], double 
     out.fuse->SetUseOBB(true);
     out.fuse->SetCheckInverted(false);
     out.fuse->Build(range);
-    if (!out.fuse->IsDone()) throw DeclinedError("sweepRay: fuse did not converge");
+    if (!out.fuse->IsDone()) throw OpError("sweepRay: fuse did not converge");
     out.result = out.fuse->Shape();
-    if (out.result.IsNull()) throw DeclinedError("sweepRay: fuse returned null");
+    if (out.result.IsNull()) throw OpError("sweepRay: fuse returned null");
     return out;
 }
 
@@ -140,9 +140,7 @@ KAPY_API int32_t kapy_sweep_ray(uint32_t ptr, uint32_t length) noexcept {
         double dir[3];
         for (double& v : dir) v = in.f64();
         const double reach = in.f64();
-        return declining("sweepRay", [&]() -> uint32_t {
-            SweepResult sweep = sweepRayCore(previous.shape, dir, reach);
-            return finishHistory(sweep.result, *sweep.fuse, previous, nullptr, bornIn, false);
-        });
+        SweepResult sweep = sweepRayCore(previous.shape, dir, reach);
+        return finishHistory(sweep.result, *sweep.fuse, previous, nullptr, bornIn, false);
     });
 }

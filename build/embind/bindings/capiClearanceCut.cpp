@@ -17,7 +17,7 @@
 //   clearance_cut  bornIn, u32 minuend, u32 tool, f64[3] unit direction,
 //                  f64 length, f64 clearance
 //
-// Anything the binding raises is a decline, so the host asks the JSON route.
+// A failure anywhere in the pipeline is the call's failure: nothing is stored.
 //
 // Who includes it: the embind link (see ../CMakeLists.txt).
 // What does NOT belong here: the sweep itself (capiSweepRay*.cpp), the cut's
@@ -97,23 +97,21 @@ KAPY_API int32_t kapy_clearance_cut(uint32_t ptr, uint32_t length) noexcept {
         for (double& v : dir) v = in.f64();
         const double reach = in.f64();
         const double clearance = in.f64();
-        return declining("clearanceCut", [&]() -> uint32_t {
-            const TopoDS_Shape part = grown(tool.shape, clearance);
-            SweepResult sweep = sweepRayCore(part, dir, reach);
-            // The channel gets a real naming table (the tool's ancestry) so the
-            // cut can carry the names; it lives only inside this call.
-            const uint32_t channel =
-                finishHistory(sweep.result, *sweep.fuse, tool, nullptr, bornIn, false, false);
-            sweep.fuse.reset();
-            try {
-                const uint32_t out = booleanOf(minuend, channel, kCut, bornIn, CUT_FUZZY, false, true);
-                dropNamed(channel);
-                if (out == 0) throw OpError("clearanceCut: cut produced an empty result");
-                return out;
-            } catch (...) {
-                dropNamed(channel);
-                throw;
-            }
-        });
+        const TopoDS_Shape part = grown(tool.shape, clearance);
+        SweepResult sweep = sweepRayCore(part, dir, reach);
+        // The channel gets a real naming table (the tool's ancestry) so the
+        // cut can carry the names; it lives only inside this call.
+        const uint32_t channel =
+            finishHistory(sweep.result, *sweep.fuse, tool, nullptr, bornIn, false, false);
+        sweep.fuse.reset();
+        try {
+            const uint32_t out = booleanOf(minuend, channel, kCut, bornIn, CUT_FUZZY, false, true);
+            dropNamed(channel);
+            if (out == 0) throw OpError("clearanceCut: cut produced an empty result");
+            return out;
+        } catch (...) {
+            dropNamed(channel);
+            throw;
+        }
     });
 }

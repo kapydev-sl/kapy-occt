@@ -5,7 +5,7 @@
 // `sweepProfile` / `sweepFaceWithHoles` of the TypeScript binding with its
 // decisions already taken (the profile arrives oriented, each hole loop
 // carries its reverse flag). A path that is an edge of another body is not
-// encoded: the core declines it and the binding answers.
+// encoded: the core refuses it, in words.
 //
 // The path wire is built BEFORE the profile, as the binding's glue does, so
 // the kernel numbers what it creates in the same order.

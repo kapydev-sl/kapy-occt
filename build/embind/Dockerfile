@@ -1,16 +1,13 @@
 # services/occt/build/embind/Dockerfile
 #
-# Option C toolchain: compile OCCT 8.0 to static WASM libs with a modern
-# Emscripten, so our own Embind bindings (kapy_bindings.cpp) can link
-# against them. This is the planegcs pattern (services/planegcs/build)
-# scaled up to OCCT: we own the kernel version and the exposed API.
+# The toolchain of the kernel: compile OCCT 8.0 to static WASM libs with a
+# modern Emscripten, so our bindings (kapy_bindings.cpp and bindings/) can link
+# against them. We own the kernel version and the exposed API.
 #
 # Build the image (produces /opt/occt with static .a toolkits):
-#   docker build -t kapy-occt-builder services/occt/build/embind
+#   docker build --platform linux/amd64 -t kapy-occt-builder:wasm-eh services/occt/build/embind
 #
-# Then link our bindings against it (see README.md):
-#   docker run --rm -v "$PWD/services/occt/build/embind:/work" -w /work \
-#     kapy-occt-builder sh -c 'emcmake cmake -B build && cmake --build build -j'
+# Then link the bindings against it with rebuild.sh (see ../README.md).
 #
 # Pin both toolchains: Emscripten and OCCT move fast and the linker flags
 # are version-sensitive. Bump deliberately, never floating `latest`.
@@ -20,8 +17,7 @@
 # potentially-throwing call leaving for a JS `invoke_*` trampoline. Legacy and
 # not the exnref proposal because that is what Safari 15.2+, Chrome 95+, Firefox
 # 100+ and Node 22 all run; emsdk 4.0.x defaults to it (WASM_LEGACY_EXCEPTIONS).
-# Build the image for linux/amd64, as every kernel before it was:
-#   docker build --platform linux/amd64 -t kapy-occt-builder:wasm-eh services/occt/build/embind
+# The image is built for linux/amd64, as every kernel before it was.
 
 FROM emscripten/emsdk:4.0.10
 

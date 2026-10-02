@@ -50,7 +50,7 @@ namespace {
 constexpr size_t SEED_FACE = 1347086145u;
 
 // The face at `index` (0-based) of the entry's map; an index outside it is a
-// failure, which the shell turns into a decline.
+// failure.
 TopoDS_Face faceAt(Entry& entry, uint32_t index) {
     ensureMaps(entry);
     if (index >= static_cast<uint32_t>(entry.faces.Extent())) {
@@ -148,10 +148,7 @@ KAPY_API int32_t kapy_face_surface(uint32_t ptr, uint32_t length) noexcept {
     return ask("getFaceGeometry", SEED_FACE, ptr, length, [](Blob& in, Out& out) {
         Entry& entry = need(in.u32());
         const uint32_t index = in.u32();
-        declining("getFaceGeometry", [&] {
-            surface(faceAt(entry, index), out);
-            return 0;
-        });
+        surface(faceAt(entry, index), out);
     });
 }
 
@@ -160,9 +157,6 @@ KAPY_API int32_t kapy_face_normal(uint32_t ptr, uint32_t length) noexcept {
         Entry& entry = need(in.u32());
         const uint32_t index = in.u32();
         const bool planar = in.u8() != 0;
-        declining("getFaceGeometry", [&] {
-            normalAndBox(faceAt(entry, index), planar, out);
-            return 0;
-        });
+        normalAndBox(faceAt(entry, index), planar, out);
     });
 }

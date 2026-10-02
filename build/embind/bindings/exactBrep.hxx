@@ -2,10 +2,9 @@
 //
 // The exact B-Rep as bytes: a shape written so that reading it gives the shape
 // back to the last bit (the format is described in exactBrepCore.cpp). The
-// embind functions move those bytes through emscripten's FS; the C API answers
-// them in the result arena.
+// C API answers them in the result arena (capiBrepIo.cpp).
 //
-// Who includes it: exactBrep.cpp, exactBrepCore.cpp, capiBrepIo.cpp.
+// Who includes it: exactBrepCore.cpp, capiBrepIo.cpp.
 // What does NOT belong here: the format itself, or how the bytes travel.
 
 #pragma once

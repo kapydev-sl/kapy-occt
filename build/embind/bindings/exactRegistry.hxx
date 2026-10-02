@@ -7,7 +7,7 @@
 // (exactGeometry.cpp): the cache is not written and the document opens by
 // regenerating.
 //
-// Who includes this: exactGeometry.cpp and exactBrep.cpp.
+// Who includes this: exactGeometry.cpp and exactBrep.cpp (the test lever).
 // What does NOT belong here: writing or restoring a frame (exactGeometry.cpp).
 
 #pragma once

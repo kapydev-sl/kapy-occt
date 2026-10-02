@@ -9,8 +9,7 @@
 //
 // `kapy_import_step` blob: str bornIn, str cacheKey, u32 length, the bytes.
 // Answers the new handle. A file the reader rejects, one with no roots or no
-// geometry, is a decline: the host redoes the import over embind, which raises
-// the user-facing message. The import is not memoised (the binding's is not).
+// geometry, fails in the words the user reads. The import is not memoised (the binding's is not).
 //
 // Who includes it: the embind link (see ../CMakeLists.txt).
 // What does NOT belong here: the cache (capiImportCache.cpp), placement.
@@ -36,23 +35,26 @@ namespace {
 constexpr size_t SEED_IMPORT_STEP = 2005051027u;
 const char* const TMP_STEP = "/import.step";
 
-// Parse `bytes` into one shape; a decline when the reader refuses.
+// Parse `bytes` into one shape; a failure when the reader refuses.
 TopoDS_Shape parseStep(const uint8_t* bytes, uint32_t length) {
     {
         std::ofstream os(TMP_STEP, std::ios::out | std::ios::binary | std::ios::trunc);
         os.write(reinterpret_cast<const char*>(bytes), static_cast<std::streamsize>(length));
         os.flush();
-        if (!os.good()) throw DeclinedError("importStep: no file");
+        if (!os.good()) throw OpError("the STEP bytes could not be written to the kernel file system");
     }
     TopoDS_Shape shape;
     try {
         STEPControl_Reader reader;
-        if (reader.ReadFile(TMP_STEP) != IFSelect_RetDone) throw DeclinedError("importStep: read");
-        if (reader.NbRootsForTransfer() < 1) throw DeclinedError("importStep: no roots");
+        const IFSelect_ReturnStatus status = reader.ReadFile(TMP_STEP);
+        if (status != IFSelect_RetDone) {
+            throw OpError("STEP read failed with status " + std::to_string(static_cast<int>(status)));
+        }
+        if (reader.NbRootsForTransfer() < 1) throw OpError("STEP file has no transferable roots");
         reader.TransferRoots(Message_ProgressRange());
-        if (reader.NbShapes() < 1) throw DeclinedError("importStep: no shapes");
+        if (reader.NbShapes() < 1) throw OpError("STEP file produced no shapes");
         shape = reader.OneShape();
-        if (shape.IsNull()) throw DeclinedError("importStep: null shape");
+        if (shape.IsNull()) throw OpError("STEP file produced a null shape");
     } catch (...) {
         std::remove(TMP_STEP);
         throw;
@@ -70,19 +72,17 @@ KAPY_API int32_t kapy_import_step(uint32_t ptr, uint32_t length) noexcept {
             const std::string cacheKey = in.str();
             const uint32_t size = in.u32();
             const uint8_t* bytes = in.take(size);
-            return declining("importStep", [&]() -> uint32_t {
-                auto& cache = stepCache();
-                auto found = cache.find(cacheKey);
-                if (found == cache.end()) {
-                    found = cache.emplace(cacheKey, parseStep(bytes, size)).first;
-                }
-                BRepBuilderAPI_Copy copier(found->second, true, false);
-                const TopoDS_Shape shape = copier.Shape();
-                const Mapped maps(shape);
-                const uint32_t id = allocTable();
-                kapy_facts::buildImported(id, maps.view(), bornIn);
-                return finishNamed(shape, maps, id, bornIn, true);
-            });
+            auto& cache = stepCache();
+            auto found = cache.find(cacheKey);
+            if (found == cache.end()) {
+                found = cache.emplace(cacheKey, parseStep(bytes, size)).first;
+            }
+            BRepBuilderAPI_Copy copier(found->second, true, false);
+            const TopoDS_Shape shape = copier.Shape();
+            const Mapped maps(shape);
+            const uint32_t id = allocTable();
+            kapy_facts::buildImported(id, maps.view(), bornIn);
+            return finishNamed(shape, maps, id, bornIn, true);
         },
         false);
 }

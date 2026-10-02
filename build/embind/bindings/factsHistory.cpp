@@ -104,6 +104,22 @@ std::vector<Block> historyBlocksOfMaker(BRepBuilderAPI_MakeShape& maker, const M
     };
 }
 
+std::vector<Block> historyBlocksOfMakers(const std::vector<BRepBuilderAPI_MakeShape*>& makers,
+                                         const Maps& operand, const Maps& result) {
+    const auto of = [&](const ShapeIndexedMap& op, const ShapeIndexedMap& res, TopAbs_ShapeEnum k) {
+        std::vector<std::vector<int>> flats;
+        for (BRepBuilderAPI_MakeShape* maker : makers) {
+            flats.push_back(kapy_namer::propagate_maker(*maker, op, res, static_cast<int>(k)));
+        }
+        return intsBlock(mergeFlats(flats));
+    };
+    return {
+        of(*operand.face, *result.face, TopAbs_FACE),
+        of(*operand.edge, *result.edge, TopAbs_EDGE),
+        of(*operand.vertex, *result.vertex, TopAbs_VERTEX),
+    };
+}
+
 std::vector<Block> historyBlocks(int sourceKind, const val& source, const Maps& operand,
                                  const Maps& result) {
     return {

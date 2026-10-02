@@ -3,8 +3,8 @@
 // The frames of a shape set's geometry, written exactly and put back after it
 // is read (see exactGeometry.cpp).
 //
-// Who includes this: exactBrep.cpp.
-// What does NOT belong here: locations (exactBrep.cpp), or anything else.
+// Who includes this: exactBrepCore.cpp.
+// What does NOT belong here: locations (exactBrepCore.cpp), or anything else.
 
 #pragma once
 

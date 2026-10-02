@@ -4,8 +4,7 @@
 // the built mesh shape, each under the content hash the feature carries. A
 // call with a key already here parses or builds nothing and hands out an
 // independent copy, so the cached base survives the release of what was handed
-// out (`importShape.ts`, `importMesh.ts` keep the same two maps for the JSON
-// route). A store reset forgets them: every shape of the old kernel is gone.
+// out (the host keeps no copy of either map). A store reset forgets them: every shape of the old kernel is gone.
 //
 // It also holds the one thing the mesh import's two files share: a planar
 // region as Rust grew it, and the face built out of one.

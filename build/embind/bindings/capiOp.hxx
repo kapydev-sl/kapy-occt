@@ -49,28 +49,25 @@ struct NotSolidError : OpError {
     explicit NotSolidError(const std::string& message) : OpError(message) {}
 };
 
-// An input the kernel can build only by raising a fault the core owns (a loft
-// section that is a face with holes): the call answers `KAPY_E_DECLINED`, the
-// host takes the JSON path, and the binding raises it there. Nothing has been
-// stored when it is thrown.
-struct DeclinedError : OpError {
-    explicit DeclinedError(const std::string& message) : OpError(message) {}
+// No attempt of an operation's ladder built a usable result; `solid` is the
+// body's solid that ran out. The host maps it to `ERR_KERNEL_NO_RESULT`.
+struct NoResultError : OpError {
+    int32_t solid;
+    NoResultError(const std::string& message, int32_t solidIndex)
+        : OpError(message), solid(solidIndex) {}
 };
 
-// Run `body()` and answer what it answers; whatever OCCT or the standard
-// library raises in it is a decline. For the operations whose binding turns a
-// kernel failure into words of its own (a blend's `{ error }`, the decoded
-// exception of a shell): the host redoes the call on the JSON path, which words
-// the failure the way it always did. Nothing is stored when `body` throws.
-template <typename Body>
-auto declining(const char* what, Body&& body) -> decltype(body()) {
-    try {
-        return body();
-    } catch (const DeclinedError&) {
-        throw;
-    } catch (...) {
-        throw DeclinedError(what);
-    }
+// A loft section that is a face with holes: the host maps it to
+// `ERR_KERNEL_FACE_HAS_HOLES`. Nothing has been stored when it is thrown.
+struct FaceHasHolesError : OpError {
+    explicit FaceHasHolesError(const std::string& message) : OpError(message) {}
+};
+
+// An OCCT exception as the product has always read it: its type, a comma, its
+// message (`Standard_Failure,There are no suitable edges ...`). Some of the
+// recipes' diagnoses match on that text.
+inline std::string occtWords(const Standard_Failure& f) {
+    return std::string(f.ExceptionType()) + "," + (f.what() ? f.what() : "");
 }
 
 // A handle the store does not hold, worded as the binding words it.
@@ -104,12 +101,14 @@ int32_t guarded(const char* name, Body&& body) {
         return fail(KAPY_E_NOT_SOLID, e.what());
     } catch (const UnknownHandleError& e) {
         return fail(KAPY_E_UNKNOWN_HANDLE, e.what());
-    } catch (const DeclinedError& e) {
-        return fail(KAPY_E_DECLINED, e.what());
+    } catch (const NoResultError& e) {
+        return fail(KAPY_E_NO_RESULT, e.what(), e.solid);
+    } catch (const FaceHasHolesError& e) {
+        return fail(KAPY_E_FACE_HAS_HOLES, e.what());
     } catch (const OpError& e) {
         return fail(KAPY_E_FAILED, e.what());
     } catch (const Standard_Failure& f) {
-        return fail(KAPY_E_FAILED, f.GetMessageString());
+        return fail(KAPY_E_FAILED, occtWords(f).c_str());
     } catch (const std::exception& e) {
         return fail(KAPY_E_FAILED, e.what());
     } catch (...) {

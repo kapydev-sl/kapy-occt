@@ -1,32 +1,19 @@
 // services/occt/build/embind/kapy_bindings.cpp
 //
-// Hand-written Embind registrations for the OCCT subset our worker uses
-// (Option C — see ../../README.md). This file is the part opencascade.js
-// auto-generates; here we own it, against OCCT 8.0.
+// The Embind core of the module: the TopoDS shape types, their enums and the
+// `TopoDS` down-casts. Everything else the TypeScript side still touches is
+// registered by the domain files under bindings/ (geometry, builders, boolean,
+// mesh, ...), and the C API the Rust core uses is declared in
+// bindings/kapy_capi.h.
 //
-// SCOPE: this is a STARTER that demonstrates the binding pattern for
-// every CATEGORY the codebase needs (value class + overloaded ctors,
-// enum, static/namespace functions, builder algo, handle, the Shape
-// type). The full class list + the exact ctor overloads / static members
-// to register are in ./BINDINGS_SPEC.md (generated from the code by
-// ../extract-methods.mjs). Completing it is mechanical: walk the spec,
-// mirror a pattern below per class.
+// Who builds it: CMakeLists.txt, linked with every bindings/*.cpp.
+// What does NOT belong here: a new binding for a class that only Rust needs
+// (that is a C API function), or a domain registration (it goes in its own
+// bindings/ file).
 //
-// ┌──────────────────────────────────────────────────────────────────┐
-// │ CRITICAL — overload numbering MUST match opencascade.js.           │
-// │ Our TS calls the suffixed names opencascade.js emits (gp_Pnt_3,    │
-// │ BRepBuilderAPI_MakeEdge_10, TopoDS.Face_1, ...). Embind does NOT   │
-// │ number overloads for you — each name below is chosen BY HAND. To   │
-// │ stay a drop-in (no churn in the ~333 call sites), every `_N` here  │
-// │ must equal the number opencascade.js assigned for the SAME OCCT    │
-// │ signature. opencascade.js numbers overloads in header-declaration  │
-// │ order starting at _1; cross-check each against node_modules/       │
-// │ opencascade.js/dist/opencascade.full.d.ts (the current 7.7 types)  │
-// │ AND the OCCT 8.0 header — if 8.0 added/reordered an overload, the  │
-// │ number shifts and you must either preserve the old number or       │
-// │ update the call site. This mapping is the main correctness risk of │
-// │ Option C; keep it in one place and test it (see README "Verify").  │
-// └──────────────────────────────────────────────────────────────────┘
+// Overload names keep the numeric suffixes the TypeScript call sites were
+// written against (`TopoDS.Face_1`, `Orientation_1`); embind does not number
+// overloads, so each name is chosen by hand.
 
 #include <emscripten/bind.h>
 
@@ -54,16 +41,15 @@
 using namespace emscripten;
 
 // --- factory helpers: embind allows ONE .constructor<> per class, so the
-// additional overloads opencascade.js exposes as `Class_N` are registered
-// as free functions returning the value. The function NAME carries the
-// opencascade.js overload number. Non-copyable classes (the algorithms)
-// cannot use this and get a derived struct instead — see bindings/boolean.cpp.
+// additional overloads are registered as `Class_N` free functions returning
+// the value. The function NAME carries the overload number. Non-copyable
+// classes (the algorithms) cannot use this and get a derived struct instead;
+// see bindings/boolean.cpp.
 
 // TopoDS down-casts: our code calls oc.TopoDS.Face_1(shape). In OCCT 8.0
 // TopoDS is a NAMESPACE of free functions (it was a class of statics in
 // 7.7), so there is nothing to hang class_functions on. An empty tag type
-// gives JS the `oc.TopoDS` object opencascade.js exposed, with the same
-// member names.
+// gives JS the `oc.TopoDS` object the call sites expect.
 struct TopoDS_Package {};
 static TopoDS_Face TopoDS_Face_1(const TopoDS_Shape& s) { return TopoDS::Face(s); }
 static TopoDS_Edge TopoDS_Edge_1(const TopoDS_Shape& s) { return TopoDS::Edge(s); }
@@ -84,12 +70,11 @@ static TopoDS_Shape Shape_Located(const TopoDS_Shape& s, const TopLoc_Location& 
 static TopLoc_Location Shape_Location_1(const TopoDS_Shape& s) { return s.Location(); }
 
 EMSCRIPTEN_BINDINGS(kapy_occt) {
-    // PATTERN 1 (value class + numbered ctor factories) now lives in
+    // The value classes with numbered ctor factories live in
     // bindings/geometry.cpp, together with the rest of the gp_* types.
 
-    // ---- PATTERN 2: enum ----
-    // opencascade.js exposes enums as an object of static values, reached
-    // as `oc.TopAbs_ShapeEnum.TopAbs_FACE`. Embind enum_ mirrors that.
+    // ---- enums ----
+    // Reached from JS as `oc.TopAbs_ShapeEnum.TopAbs_FACE`.
     enum_<TopAbs_ShapeEnum>("TopAbs_ShapeEnum")
         .value("TopAbs_COMPOUND", TopAbs_COMPOUND)
         .value("TopAbs_SOLID", TopAbs_SOLID)
@@ -105,14 +90,12 @@ EMSCRIPTEN_BINDINGS(kapy_occt) {
         .value("TopAbs_INTERNAL", TopAbs_INTERNAL)
         .value("TopAbs_EXTERNAL", TopAbs_EXTERNAL);
 
-    // ---- PATTERN 3: the Shape type + its methods ----
+    // ---- the Shape type and its methods ----
     // TopoDS_Shape is passed by handle everywhere; register the members
-    // the code calls (Orientation_1, IsNull, ...). See the global method
-    // list in BINDINGS_SPEC.md for the full member set.
+    // the code calls (Orientation_1, IsNull, ...).
     // `Orientation` is overloaded (const getter + setter), so the member
-    // pointer is ambiguous and must be disambiguated. opencascade.js numbers
-    // the getter `_1` because it is declared first; select_overload picks the
-    // same one. Every overloaded member below needs this treatment.
+    // pointer is ambiguous and must be disambiguated; the getter is `_1`
+    // because it is declared first. Every overloaded member below needs this treatment.
     class_<TopoDS_Shape>("TopoDS_Shape")
         .constructor<>()
         .function("IsNull", &TopoDS_Shape::IsNull)
@@ -131,9 +114,9 @@ EMSCRIPTEN_BINDINGS(kapy_occt) {
     class_<TopoDS_Shell, base<TopoDS_Shape>>("TopoDS_Shell").constructor<>();
     class_<TopoDS_Solid, base<TopoDS_Shape>>("TopoDS_Solid").constructor<>();
 
-    // ---- PATTERN 4: package of static functions ----
+    // ---- the TopoDS down-casts ----
     // `oc.TopoDS.Face_1(...)`. class_function on a tag type reproduces the
-    // object opencascade.js exposed, so no TS shim is needed.
+    // object the call sites expect.
     class_<TopoDS_Package>("TopoDS")
         .class_function("Face_1", &TopoDS_Face_1)
         .class_function("Edge_1", &TopoDS_Edge_1)
@@ -142,37 +125,9 @@ EMSCRIPTEN_BINDINGS(kapy_occt) {
         .class_function("Solid_1", &TopoDS_Solid_1)
         .class_function("Wire_1", &TopoDS_Wire_1);
 
-    // PATTERN 5 (builder algorithm) now lives in bindings/builders.cpp,
+    // The builder algorithms live in bindings/builders.cpp,
     // together with the rest of the BRepBuilderAPI / BRepPrimAPI shapes.
 
-    // PATTERN 6 (package of static readers) now lives in bindings/mesh.cpp,
-    // where BRep_Tool sits next to the Poly_* types its Triangulation returns.
-
-    // ======================================================================
-    // TODO: remaining classes from BINDINGS_SPEC.md — each maps to one of
-    // the six patterns above. Groups still to bind:
-    //   gp_*        : gp_Pnt2d, gp_Ax1/2/3, gp_Circ, gp_Elips, gp_Dir2d, gp_Lin2d
-    //   TopoDS/Top* : TopoDS_Iterator, TopExp(_Explorer), TopTools_* maps,
-    //                 TopLoc_Location, TopAbs_State
-    //   BRepBuilderAPI_* : MakeEdge (_3,_8,_10,_12,_30), MakeWire, MakeFace_15,
-    //                      Transform_2, Copy_2
-    //   BRepPrimAPI_*    : MakePrism_1, MakeRevol_1
-    //   BRepAlgoAPI_*    : Fuse_1, Cut_1/_3, Common_1, BOPAlgo_GlueEnum
-    //   BRepFilletAPI_*  : MakeFillet, MakeChamfer, ChFi3d_FilletShape
-    //   BRepOffsetAPI_*  : MakePipe, MakePipeShell, MakeThickSolid, ThruSections
-    //   props/checks     : GProp_GProps, BRepGProp, BRepExtrema_DistShapeShape,
-    //                      BRepClass3d_SolidClassifier, BRepCheck_Analyzer
-    //   healing          : ShapeFix_Shape, ShapeAnalysis, ShapeUpgrade_UnifySameDomain
-    //   mesh/adaptor     : BRepMesh_IncrementalMesh, BRepAdaptor_Curve/Surface,
-    //                      BRepTools_WireExplorer, GCPnts_UniformDeflection
-    //   I/O              : STEPControl_Reader/Writer, StlAPI, IFSelect_ReturnStatus,
-    //                      Message_ProgressRange
-    //   HLR              : HLRBRep_Algo, HLRBRep_PolyAlgo, HLRBRep_HLRToShape,
-    //                      HLRAlgo_Projector
-    //   geom + handles   : Geom_CylindricalSurface, Geom2d_Line/TrimmedCurve,
-    //                      Handle_Geom*_*, GeomAbs_* enums
-    //   shape-history    : Modified()/Generated()/IsDeleted() on the boolean +
-    //                      fillet + unify algos — THE naming-critical methods;
-    //                      bind them exactly (propagationSelfTest exercises them)
-    // ======================================================================
+    // The BRep_Tool readers live in bindings/mesh.cpp, next to the Poly_*
+    // types its Triangulation returns.
 }

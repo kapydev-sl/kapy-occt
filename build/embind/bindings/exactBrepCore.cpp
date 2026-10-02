@@ -33,9 +33,8 @@
 // writes it) · i32 length and the frames (exactGeometry.cpp) · the shape set ·
 // the root shape's reference.
 //
-// This file is the bytes: `writeExact` / `readExact` work on a string, so the
-// embind functions (exactBrep.cpp, through emscripten's FS) and the C API
-// (capiBrepIo.cpp, straight into the arena) write and read the same format.
+// This file is the bytes: `writeExact` / `readExact` work on a string, and the
+// C API (capiBrepIo.cpp, straight into the arena) writes and reads them.
 //
 // Who includes this: the embind link (see ../CMakeLists.txt); its interface is
 // exactBrep.hxx.

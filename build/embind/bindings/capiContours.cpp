@@ -179,12 +179,9 @@ KAPY_API int32_t kapy_face_polylines(uint32_t ptr, uint32_t length) noexcept {
     return ask("getFaceBoundaryPolylines", SEED_POLYLINES, ptr, length, [](Blob& in, Out& out) {
         Entry& entry = need(in.u32());
         const uint32_t index = in.u32();
-        declining("getFaceBoundaryPolylines", [&] {
-            TopoDS_Face face;
-            if (faceAt(entry, index, face)) polylines(face, out);
-            else out.u32(0);
-            return 0;
-        });
+        TopoDS_Face face;
+        if (faceAt(entry, index, face)) polylines(face, out);
+        else out.u32(0);
     });
 }
 
@@ -192,14 +189,11 @@ KAPY_API int32_t kapy_face_wires(uint32_t ptr, uint32_t length) noexcept {
     return ask("getFaceBoundaryWires", SEED_WIRES, ptr, length, [](Blob& in, Out& out) {
         Entry& entry = need(in.u32());
         const uint32_t index = in.u32();
-        declining("getFaceBoundaryWires", [&] {
-            TopoDS_Face face;
-            if (faceAt(entry, index, face)) wires(face, out);
-            else {
-                out.u32(0);
-                out.u32(0);
-            }
-            return 0;
-        });
+        TopoDS_Face face;
+        if (faceAt(entry, index, face)) wires(face, out);
+        else {
+            out.u32(0);
+            out.u32(0);
+        }
     });
 }

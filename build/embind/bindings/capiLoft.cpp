@@ -17,8 +17,8 @@
 //   loft  bornIn, u8 ruled, u8 closed, u32 sections, per section u8 kind:
 //         0 profile: plane, segments (already oriented); 1 face: u32 handle,
 //         u32 faceIndex
-// A face with holes is declined (`KAPY_E_DECLINED`): the binding raises the
-// fault the core maps for it, and the host takes that path.
+// A face with holes answers `KAPY_E_FACE_HAS_HOLES`, which the core maps to
+// `ERR_KERNEL_FACE_HAS_HOLES`.
 //
 // Who includes it: the embind link (see ../CMakeLists.txt).
 // What does NOT belong here: the 2D loop arithmetic, straight prisms.
@@ -97,7 +97,7 @@ uint32_t loftSections(Blob& in, bool ruled) {
 }
 
 // The outer wire of face `faceIndex` of the body `handle` (the section a face
-// is). A face with inner wires is declined.
+// is). A face with inner wires is the face-has-holes failure.
 TopoDS_Wire faceOuterWire(uint32_t handle, uint32_t faceIndex) {
     Entry& entry = need(handle);
     ensureMaps(entry);
@@ -108,7 +108,7 @@ TopoDS_Wire faceOuterWire(uint32_t handle, uint32_t faceIndex) {
     int wireCount = 0;
     for (TopExp_Explorer ex(face, TopAbs_WIRE); ex.More(); ex.Next()) ++wireCount;
     if (wireCount > 1) {
-        throw DeclinedError("face " + std::to_string(faceIndex) + " has " +
+        throw FaceHasHolesError("face " + std::to_string(faceIndex) + " has " +
                             std::to_string(wireCount - 1) + " hole(s)");
     }
     const TopoDS_Wire outer = ShapeAnalysis::OuterWire(face);

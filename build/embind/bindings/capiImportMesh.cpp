@@ -20,8 +20,7 @@
 // kernel answers nothing when it does not, and Rust grows the regions (the
 // expensive part) and asks again with them. A hit answers u32 handle, u32 input
 // triangles, u32 regions, u32 output faces and u8 solid. A mesh that builds no
-// face or sews to nothing is a decline: the host redoes the import over embind,
-// which raises the message the recipe maps to its error.
+// face or sews to nothing fails in the words the recipe maps to its error.
 //
 // Who includes it: the embind link (see ../CMakeLists.txt).
 // What does NOT belong here: the region faces (capiImportRegion.cpp), growing
@@ -138,10 +137,10 @@ BuiltMesh buildMeshShape(const std::vector<float>& positions, const std::vector<
         sewing.Add(face);
         faceCount++;
     }
-    if (faceCount == 0) throw DeclinedError("importMesh: no buildable faces");
+    if (faceCount == 0) throw OpError("Mesh produced no buildable faces");
     sewing.Perform(Message_ProgressRange());
     const TopoDS_Shape sewed = sewing.SewedShape();
-    if (sewed.IsNull()) throw DeclinedError("importMesh: sewing produced nothing");
+    if (sewed.IsNull()) throw OpError("Sewing produced a null shape");
 
     // Watertight when sewing reports no free edges left and the result is one
     // shell.
@@ -204,15 +203,13 @@ KAPY_API int32_t kapy_import_mesh(uint32_t ptr, uint32_t length) noexcept {
         std::vector<float> positions;
         std::vector<MeshRegion> regions;
         if (hasRegions) regions = readRegions(in, positions);
-        return declining("importMesh", [&]() -> int32_t {
-            auto& cache = meshCache();
-            auto found = cache.find(cacheKey);
-            if (found == cache.end()) {
-                if (!hasRegions) return answerNothing();
-                found = cache.emplace(cacheKey, buildMeshShape(positions, regions, p, inputTris))
-                            .first;
-            }
-            return handOut(found->second, bornIn);
-        });
+        auto& cache = meshCache();
+        auto found = cache.find(cacheKey);
+        if (found == cache.end()) {
+            if (!hasRegions) return answerNothing();
+            found = cache.emplace(cacheKey, buildMeshShape(positions, regions, p, inputTris))
+                        .first;
+        }
+        return handOut(found->second, bornIn);
     });
 }

@@ -1,7 +1,8 @@
 // services/occt/build/embind/bindings/kapy_capi.h
 //
 // The C API of the kernel, ABI version 1: the functions `kpy-core.wasm` (Rust)
-// reaches OCCT with when it does not go through the JSON transport. Every
+// reaches OCCT with. It is the only way into the kernel for a shape build or a
+// question about a shape. Every
 // function is `extern "C"`, `noexcept`, takes and returns plain integers and
 // doubles, and reports a failure as a negative `KAPY_E_*` code; the message
 // and any bulk answer sit in the result arena (`kapy_result_ptr/len`), which
@@ -37,10 +38,12 @@
 #define KAPY_E_NOMEM -4
 // An operand of a boolean is not a solid (the host raises `ERR_KERNEL_NOT_SOLID`).
 #define KAPY_E_NOT_SOLID -5
-// The kernel will not answer this input and the core must: the JSON path
-// builds it, or raises the fault it owns for it (a loft section that is a face
-// with holes). Nothing was stored. Additive: the ABI version does not move.
-#define KAPY_E_DECLINED -6
+// No attempt the caller asked for built anything usable: `kapy_error_arg()`
+// is the index of the solid that ran out (`ERR_KERNEL_NO_RESULT`).
+#define KAPY_E_NO_RESULT -6
+// A body face handed over as a single-wire section has holes in it
+// (`ERR_KERNEL_FACE_HAS_HOLES`).
+#define KAPY_E_FACE_HAS_HOLES -7
 
 // Identity and self-check.
 KAPY_API int32_t kapy_abi_version() noexcept;
@@ -59,9 +62,12 @@ KAPY_API uint32_t kapy_result_len() noexcept;
 // (written to the arena; the answer is its length).
 KAPY_API int32_t kapy_error() noexcept;
 KAPY_API int32_t kapy_error_message() noexcept;
+// The number a failure carries beside its code: the solid index of a
+// `KAPY_E_NO_RESULT`, zero for every other failure.
+KAPY_API int32_t kapy_error_arg() noexcept;
 
 // Handles. `kapy_release` takes `count` u32 handles at `ptr`; an unknown one
-// is skipped (a second release is not an error, as in the JSON transport), and
+// is skipped (a second release is not an error, as a second release is harmless), and
 // the handles it dropped are queued for the host (`Kapy_StoreTakeDropped`).
 // `kapy_retain` answers the new count.
 KAPY_API int32_t kapy_release(uint32_t ptr, uint32_t count) noexcept;
@@ -79,7 +85,7 @@ KAPY_API int32_t kapy_facts_take() noexcept;
 // Shape builders. Each takes a blob at `ptr` (`length` bytes, written by the
 // host into the kernel's memory) holding the arguments, and answers the new
 // handle as one u32 in the arena. The kernel names the shape (the facts it
-// appends to the log are the ones the JSON transport records) and stores it, so
+// appends to the log are what the core's naming table is made from) and stores it, so
 // the handle comes back ready to use (an empty arena means the operation has
 // no result, as an empty intersection). The blob layouts are in the capi*.cpp
 // file of each function.
@@ -115,15 +121,16 @@ KAPY_API int32_t kapy_instance_body(uint32_t ptr, uint32_t length) noexcept;
 // Blend, shell and offset: one fillet or chamfer build, a thick solid through a
 // ladder handed over as data, an offset of a whole solid and an offset of the
 // picked faces. Each names its result and answers its handle; a refusal
-// answers `KAPY_E_DECLINED` and stores nothing, so the host redoes the call on
-// the JSON path, which words the failure.
+// answers `KAPY_E_FAILED` with the words the product reads (or
+// `KAPY_E_NO_RESULT`) and stores nothing.
 KAPY_API int32_t kapy_blend_attempt(uint32_t ptr, uint32_t length) noexcept;
+KAPY_API int32_t kapy_blend_probe(uint32_t ptr, uint32_t length) noexcept;
 KAPY_API int32_t kapy_thick_solid(uint32_t ptr, uint32_t length) noexcept;
 KAPY_API int32_t kapy_offset_solid(uint32_t ptr, uint32_t length) noexcept;
 KAPY_API int32_t kapy_offset_faces(uint32_t ptr, uint32_t length) noexcept;
 
 // The swept volume of a solid along a ray, and the clearance cut built on it
-// (the analytic channel; the mesh channel stays on the JSON route):
+// (the analytic channel; the mesh channel is the host's, in manifold-3d):
 // `kapy_sweep_ray`                                   (capiSweepRay.cpp)
 // `kapy_clearance_cut`                               (capiClearanceCut.cpp)
 KAPY_API int32_t kapy_sweep_ray(uint32_t ptr, uint32_t length) noexcept;
@@ -133,8 +140,8 @@ KAPY_API int32_t kapy_clearance_cut(uint32_t ptr, uint32_t length) noexcept;
 // blob `(ptr, length)` that starts with the handle(s) it asks about and each
 // answering its bytes in the arena. None mints or stores a shape, none is
 // memoised. An unknown handle is `KAPY_E_UNKNOWN_HANDLE`; anything the kernel
-// raises while it works is `KAPY_E_DECLINED`, so the host asks the same
-// question over JSON, which words the failure. The layouts are in the
+// raises while it works is `KAPY_E_FAILED`, worded as OCCT words it
+// (`<exception type>,<message>`). The layouts are in the
 // capi*.cpp file of each function.
 //
 // `kapy_area` / `kapy_mass_props` / `kapy_is_valid`  (capiMeasure.cpp)
@@ -154,6 +161,17 @@ KAPY_API int32_t kapy_face_surface(uint32_t ptr, uint32_t length) noexcept;
 KAPY_API int32_t kapy_face_normal(uint32_t ptr, uint32_t length) noexcept;
 KAPY_API int32_t kapy_face_polylines(uint32_t ptr, uint32_t length) noexcept;
 KAPY_API int32_t kapy_face_wires(uint32_t ptr, uint32_t length) noexcept;
+
+// What the blend and shell recipes read off a body around their attempts:
+// `kapy_topology`                                    (capiTopoGraph.cpp)
+// `kapy_edge_probe`                                  (capiEdgeProbe.cpp)
+// `kapy_face_triangle`                               (capiFaceTriangle.cpp)
+// `kapy_shell_facts` / `kapy_thick_probe`            (capiShellFacts.cpp)
+KAPY_API int32_t kapy_topology(uint32_t ptr, uint32_t length) noexcept;
+KAPY_API int32_t kapy_edge_probe(uint32_t ptr, uint32_t length) noexcept;
+KAPY_API int32_t kapy_face_triangle(uint32_t ptr, uint32_t length) noexcept;
+KAPY_API int32_t kapy_shell_facts(uint32_t ptr, uint32_t length) noexcept;
+KAPY_API int32_t kapy_thick_probe(uint32_t ptr, uint32_t length) noexcept;
 
 // `kapy_mesh` / `kapy_hlr_input`                     (capiMesh.cpp)
 // `kapy_brep_write` / `kapy_brep_read`               (capiBrepIo.cpp)

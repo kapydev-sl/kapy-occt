@@ -1,12 +1,14 @@
 # services/occt/build/embind/CMakeLists.txt
 #
-# Links kapy_bindings.cpp against the static OCCT 8.0 toolkits built into
-# /opt/occt by the Dockerfile, emitting kapy-occt.js + kapy-occt.wasm.
-# Run under emcmake (the Dockerfile's emsdk provides the toolchain file).
+# Links kapy_bindings.cpp and bindings/*.cpp against the static OCCT 8.0
+# toolkits built into /opt/occt by the Dockerfile, emitting kapy-occt.js +
+# kapy-occt.wasm. Run under emcmake (the Dockerfile's emsdk provides the
+# toolchain file); rebuild.sh does it.
 #
 #   emcmake cmake -B build && cmake --build build -j
 #
-# Output lands in build/kapy-occt.{js,wasm}; move to ../../dist/.
+# Output lands in build/kapy-occt.{js,wasm}; rebuild.sh --publish copies it to
+# services/occt/dist/.
 
 cmake_minimum_required(VERSION 3.20)
 project(kapy_occt CXX)
@@ -29,13 +31,13 @@ find_package(OpenCASCADE REQUIRED
     NO_DEFAULT_PATH NO_CMAKE_FIND_ROOT_PATH)
 
 # The bindings are split by OCCT domain under bindings/ so no single file
-# carries all 78 classes; each contributes its own EMSCRIPTEN_BINDINGS block.
+# carries every class; each contributes its own EMSCRIPTEN_BINDINGS block.
 file(GLOB KAPY_BINDING_SOURCES CONFIGURE_DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/bindings/*.cpp")
 add_executable(kapy-occt kapy_bindings.cpp ${KAPY_BINDING_SOURCES})
 
 # OCCT signals every recoverable failure by throwing Standard_Failure, and the
-# app depends on catching it (runLocalOperation's fillet retry, runShell's
-# tolerance escalation, healShape). Emscripten disables exception CATCHING by
+# kernel depends on catching it (the fillet retry, the shell tolerance
+# escalation, healing). Emscripten disables exception CATCHING by
 # default, which turns those throws into abort() — the module dies and the
 # heap is corrupt.
 # NATIVE WebAssembly exceptions, the legacy proposal (-fwasm-exceptions with
@@ -69,8 +71,7 @@ target_link_libraries(kapy-occt PRIVATE
 )
 
 # Emscripten output tuned to how the OCCT worker consumes the module:
-# ES6 module + Embind + growable memory. Mirrors the flags in the
-# Option-A kapy-occt.yml so the two builds stay swap-compatible.
+# ES6 module + Embind + growable memory.
 target_link_options(kapy-occt PRIVATE
     -O3
     --bind
@@ -88,7 +89,7 @@ target_link_options(kapy-occt PRIVATE
     # OCCT recurses deeply in fillet/boolean/blend evaluation; the
     # emscripten default 64KB stack overflows on non-trivial models and
     # (with no stack check in the shipping build) silently corrupts memory
-    # -> 'memory access out of bounds'. opencascade.js links 8MB; match it.
+    # -> 'memory access out of bounds'.
     -sSTACK_SIZE=8MB
     # HEAPU8: the host copies bytes between this memory and Rust's through it
     # (the C API, bindings/kapy_capi.h; its KAPY_API functions are exported by

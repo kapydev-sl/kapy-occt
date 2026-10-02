@@ -12,7 +12,9 @@
 // of a shape the host stored, so a C operation can name against it.
 // `Kapy_CapiPerturbForTest` is the red
 // control's lever: it makes the C measurements lie by a known amount, and is
-// never called outside tests.
+// never called outside tests, and so are `Kapy_HistoryJudgeForTest`, which
+// judges a report of boolean history a broken kernel would give (15 numbers),
+// and `Kapy_HistoryReportForTest`, which measures the real one.
 //
 // Who includes it: the embind link (see ../CMakeLists.txt).
 // What does NOT belong here: the store itself and the C entry points.
@@ -20,8 +22,14 @@
 #include <emscripten/bind.h>
 #include <emscripten/val.h>
 
+#include <cstdlib>
+#include <sstream>
+#include <string>
+#include <vector>
+
 #include <TopoDS_Shape.hxx>
 
+#include "capiSelfTest.hxx"
 #include "capiState.hxx"
 #include "capiStore.hxx"
 
@@ -66,6 +74,35 @@ void tableSeed(unsigned int next) { kapy_capi::seedTable(next); }
 unsigned int tableNext() { return kapy_capi::nextTable(); }
 
 void perturb(int mode) { kapy_capi::setPerturbation(mode); }
+
+// The warnings the boot check gives for a report: cutEdges, cutVertices and
+// fuseVertices, each as total, modified, deleted, kept, unaccounted, given as
+// 15 comma-separated numbers.
+std::string historyJudge(const std::string& csv) {
+    std::vector<int> n;
+    std::stringstream in(csv);
+    for (std::string part; std::getline(in, part, ',');) n.push_back(std::atoi(part.c_str()));
+    if (n.size() != 15) return "a report is 15 numbers";
+    const auto at = [&n](size_t i) {
+        return kapy_capi::HistoryCounts{n[i], n[i + 1], n[i + 2], n[i + 3], n[i + 4]};
+    };
+    return kapy_capi::historyWarnings({at(0), at(5), at(10)});
+}
+
+// What the two booleans of the boot check count, as the 15 numbers
+// `historyJudge` reads ("" when a boolean did not build).
+std::string historyReport() {
+    kapy_capi::HistoryReport report;
+    if (!kapy_capi::measureHistory(report)) return "";
+    std::string out;
+    for (const auto& c : {report.cutEdges, report.cutVertices, report.fuseVertices}) {
+        for (int v : {c.total, c.modified, c.deleted, c.kept, c.unaccounted}) {
+            if (!out.empty()) out += ',';
+            out += std::to_string(v);
+        }
+    }
+    return out;
+}
 }  // namespace
 
 EMSCRIPTEN_BINDINGS(kapy_capi) {
@@ -82,4 +119,6 @@ EMSCRIPTEN_BINDINGS(kapy_capi) {
     function("Kapy_TableSeed", &tableSeed);
     function("Kapy_TableNext", &tableNext);
     function("Kapy_CapiPerturbForTest", &perturb);
+    function("Kapy_HistoryJudgeForTest", &historyJudge);
+    function("Kapy_HistoryReportForTest", &historyReport);
 }

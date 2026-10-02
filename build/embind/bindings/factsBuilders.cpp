@@ -79,6 +79,18 @@ void buildBooleanOfMaker(uint32_t id, uint32_t previous, uint32_t tool, const Ma
     construct(id, previous, tool, skeleton + "}", blocks);
 }
 
+void buildBooleanOfMakers(uint32_t id, uint32_t previous, const Maps& result,
+                          const std::string& bornIn,
+                          const std::vector<BRepBuilderAPI_MakeShape*>& makers,
+                          const Maps& previousMaps) {
+    std::vector<Block> blocks{elementsOf(result, false)};
+    extend(blocks, historyBlocksOfMakers(makers, previousMaps, result));
+    construct(id, previous, 0,
+              head("boolean", bornIn) + ",\"elements\":" + ref(0) +
+                  ",\"previous\":" + historyRef(1) + ",\"tool\":null}",
+              blocks);
+}
+
 void buildUnify(uint32_t id, uint32_t previous, const Maps& result, const std::string& bornIn,
                 const val& history, const Maps& previousMaps) {
     buildUnifyOf(id, previous, result, bornIn, history.as<BRepTools_History&>(), previousMaps);

@@ -25,8 +25,7 @@ KAPY_API int32_t kapy_classify_point(uint32_t ptr, uint32_t length) noexcept {
         const double x = in.f64();
         const double y = in.f64();
         const double z = in.f64();
-        const PointProbe probe =
-            declining("classifyPoint", [&] { return probePoint(entry.shape, x, y, z); });
+        const PointProbe probe = probePoint(entry.shape, x, y, z);
         // The red control: a body that contains nothing, so a point that is
         // inside reads as outside.
         out.u8(perturbation() == 8 && probe.state == STATE_IN ? STATE_OUT : probe.state);

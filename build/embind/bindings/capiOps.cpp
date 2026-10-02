@@ -80,7 +80,7 @@ KAPY_API int32_t kapy_volume(uint32_t handle) noexcept {
         if (perturbation() == 1) volume = 0.0;
         return answer(&volume, sizeof(volume));
     } catch (const Standard_Failure& failure) {
-        return fail(KAPY_E_FAILED, failure.GetMessageString());
+        return fail(KAPY_E_FAILED, failure.what());
     } catch (...) {
         return fail(KAPY_E_FAILED, "getShapeVolume: unknown failure");
     }
@@ -103,7 +103,7 @@ KAPY_API int32_t kapy_bounds(uint32_t handle) noexcept {
         }
         return answer(six, sizeof(six));
     } catch (const Standard_Failure& failure) {
-        return fail(KAPY_E_FAILED, failure.GetMessageString());
+        return fail(KAPY_E_FAILED, failure.what());
     } catch (...) {
         return fail(KAPY_E_FAILED, "getShapeBounds: unknown failure");
     }

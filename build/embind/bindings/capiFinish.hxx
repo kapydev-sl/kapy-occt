@@ -74,6 +74,12 @@ uint32_t finishHistory(const TopoDS_Shape& shape, BRepBuilderAPI_MakeShape& make
                        Entry& previous, Entry* tool, const std::string& bornIn, bool unify,
                        bool announce = true);
 
+// The same for a compound several makers built between them (a body shelled
+// solid by solid): each element is named by the first maker that has a say.
+uint32_t finishHistoryOfMakers(const TopoDS_Shape& shape,
+                               const std::vector<BRepBuilderAPI_MakeShape*>& makers,
+                               Entry& previous, const std::string& bornIn, bool unify);
+
 // Drop an intermediate handle and its naming table, in the order the binding's
 // `releaseShape` does (the store first, then the namer).
 void dropNamed(uint32_t handle);

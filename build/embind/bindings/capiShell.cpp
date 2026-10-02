@@ -7,10 +7,11 @@
 // without its slivers (capiShellCleanup.cpp); the winner names the result
 // through its history.
 //
-// A body of several solids is declined: the binding shells it solid by solid
-// and names the pieces through several makers at once, which the JSON path
-// still does. So is every failure (no attempt built, an index out of range):
-// nothing has been stored, and the binding words the fault.
+// A body of several solids is hollowed solid by solid (the ones without an
+// opening stay solid) and named through the history of all the makers at once.
+// A failure stores nothing: an index out of range fails in the words the shell
+// always gave, and a solid no attempt could hollow answers `KAPY_E_NO_RESULT`
+// with its index.
 //
 // Blob (little-endian; see capiBlob.hxx, and the writer in
 // engine/crates/kpy-core/src/kernel/capi_build/encode_k7.rs):
@@ -21,16 +22,19 @@
 //
 // Who includes it: the embind link (see ../CMakeLists.txt).
 // What does NOT belong here: the ladder's contents (Rust), the cleanup
-// rebuild (capiShellCleanup.cpp), the facts probe (it stays on JSON).
+// rebuild (capiShellCleanup.cpp), the facts probe (capiShellFacts.cpp).
 
 #include "capiShell.hxx"
 
+#include <BRepBuilderAPI_MakeShape.hxx>
 #include <BRepOffset_Mode.hxx>
+#include <BRep_Builder.hxx>
 #include <GeomAbs_JoinType.hxx>
 #include <Message_ProgressRange.hxx>
 #include <TopExp.hxx>
 #include <TopTools_IndexedMapOfShape.hxx>
 #include <TopoDS.hxx>
+#include <TopoDS_Compound.hxx>
 
 #include "capiFinish.hxx"
 #include "capiGuards.hxx"
@@ -75,6 +79,46 @@ std::vector<Rung> readRungs(Blob& in) {
     return rungs;
 }
 
+// The ladder, then the cleanup attempts, on one solid: the fault when none builds.
+ThickResult attempt(const TopoDS_Shape& shape, const TopTools_ListOfShape& closing,
+                    const std::vector<TopoDS_Shape>& removed, double thickness,
+                    const std::vector<Rung>& rungs, const std::vector<Rung>& cleanup,
+                    uint32_t index) {
+    ThickResult made = makeThickSolid(shape, closing, thickness, rungs, signedVolume(shape));
+    if (!made.op) made = shellCleaned(shape, removed, thickness, cleanup);
+    if (!made.op) {
+        throw NoResultError("no shell attempt built solid " + std::to_string(index),
+                            static_cast<int32_t>(index));
+    }
+    return made;
+}
+
+// A body of several solids is hollowed solid by solid: the ones without a
+// picked face stay solid, the results meet in a compound and every element is
+// named through the history of all the makers.
+uint32_t shellEachSolid(Entry& prev, const ShellPieces& split, double thickness,
+                        const std::vector<Rung>& rungs, const std::vector<Rung>& cleanup,
+                        const std::string& bornIn) {
+    BRep_Builder builder;
+    TopoDS_Compound compound;
+    builder.MakeCompound(compound);
+    std::vector<ThickResult> kept;
+    for (size_t p = 0; p < split.pieces.size(); ++p) {
+        const ShellPiece& piece = split.pieces[p];
+        if (piece.removed.empty()) {
+            builder.Add(compound, piece.shape);
+            continue;
+        }
+        kept.push_back(attempt(piece.shape, piece.closing, piece.removed, thickness, rungs,
+                               cleanup, static_cast<uint32_t>(p)));
+        builder.Add(compound, kept.back().result);
+    }
+    if (kept.empty()) throw NoResultError("no solid of the body has an opening", 0);
+    std::vector<BRepBuilderAPI_MakeShape*> makers;
+    for (ThickResult& made : kept) makers.push_back(made.op.get());
+    return finishHistoryOfMakers(compound, makers, prev, bornIn, /*unify=*/true);
+}
+
 uint32_t thickOf(Blob& in) {
     const std::string bornIn = in.str();
     const uint32_t previous = in.u32();
@@ -87,36 +131,64 @@ uint32_t thickOf(Blob& in) {
     if (!in.done()) throw BlobError();
 
     Entry& prev = need(previous);
-    return declining("shell: the kernel raised", [&]() -> uint32_t {
-        ensureMaps(prev);
-        if (indices.empty()) throw DeclinedError("shell: no face to remove");
-        for (const uint32_t idx : indices) {
-            if (static_cast<int>(idx) >= prev.faces.Extent()) {
-                throw DeclinedError("shell: face index out of range");
-            }
-        }
-        TopTools_IndexedMapOfShape pieces;
-        TopExp::MapShapes(prev.shape, TopAbs_SOLID, pieces);
-        if (pieces.Extent() > 1) throw DeclinedError("shell: a body of several solids");
+    ensureMaps(prev);
+    checkShellFaces(prev, indices);
+    const ShellPieces split = shellPieces(prev, indices);
+    if (!split.whole) return shellEachSolid(prev, split, thickness, rungs, cleanup, bornIn);
 
-        TopTools_ListOfShape closing;
-        std::vector<TopoDS_Shape> removed;
-        for (const uint32_t idx : indices) {
-            const TopoDS_Face face = TopoDS::Face(prev.faces.FindKey(static_cast<int>(idx) + 1));
-            removed.push_back(face);
-            closing.Append(face);
-        }
-        ThickResult made =
-            makeThickSolid(prev.shape, closing, thickness, rungs, signedVolume(prev.shape));
-        if (!made.op) made = shellCleaned(prev.shape, removed, thickness, cleanup);
-        if (!made.op) throw DeclinedError("shell: no attempt built");
-        return finishHistory(made.result, *made.op, prev, nullptr, bornIn, /*unify=*/true);
-    });
+    const ShellPiece& body = split.pieces[0];
+    const ThickResult made =
+        attempt(body.shape, body.closing, body.removed, thickness, rungs, cleanup, 0);
+    return finishHistory(made.result, *made.op, prev, nullptr, bornIn, /*unify=*/true);
 }
 
 }  // namespace
 
 namespace kapy_capi {
+
+void checkShellFaces(const Entry& prev, const std::vector<uint32_t>& indices) {
+    if (indices.empty()) throw OpError("Shell needs at least one face to remove");
+    const int count = prev.faces.Extent();
+    for (const uint32_t idx : indices) {
+        if (static_cast<int>(idx) >= count) {
+            throw OpError("Shell face index " + std::to_string(idx) + " out of range [0, " +
+                          std::to_string(count - 1) + "]");
+        }
+    }
+}
+
+ShellPieces shellPieces(const Entry& prev, const std::vector<uint32_t>& indices) {
+    ShellPieces split{true, {}};
+    TopTools_IndexedMapOfShape solids;
+    TopExp::MapShapes(prev.shape, TopAbs_SOLID, solids);
+    if (solids.Extent() <= 1) {
+        split.pieces.emplace_back();
+        ShellPiece& body = split.pieces.back();
+        body.shape = prev.shape;
+        for (const uint32_t idx : indices) {
+            const TopoDS_Face face = TopoDS::Face(prev.faces.FindKey(static_cast<int>(idx) + 1));
+            body.removed.push_back(face);
+            body.closing.Append(face);
+        }
+        return split;
+    }
+    split.whole = false;
+    for (int p = 1; p <= solids.Extent(); ++p) {
+        split.pieces.emplace_back();
+        ShellPiece& piece = split.pieces.back();
+        piece.shape = solids.FindKey(p);
+        TopTools_IndexedMapOfShape faceMap;
+        TopExp::MapShapes(piece.shape, TopAbs_FACE, faceMap);
+        for (const uint32_t idx : indices) {
+            const int at = faceMap.FindIndex(prev.faces.FindKey(static_cast<int>(idx) + 1));
+            if (at > 0) {
+                piece.closing.Append(faceMap.FindKey(at));
+                piece.removed.push_back(faceMap.FindKey(at));
+            }
+        }
+    }
+    return split;
+}
 
 ThickResult makeThickSolid(const TopoDS_Shape& shape, const TopTools_ListOfShape& closing,
                            double thickness, const std::vector<Rung>& rungs, double inputVolume) {

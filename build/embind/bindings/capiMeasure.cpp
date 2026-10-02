@@ -2,8 +2,7 @@
 //
 // The whole-shape measures of the C API: surface area, volume with centre of
 // mass, and whether the B-Rep passes BRepCheck. Each is the binding's own
-// call (binding/runShapeMeasure.ts, runShapeChecks.ts), so the numbers are the
-// ones the JSON transport has always given:
+// call, so the numbers are the ones the product has always read:
 //   area       BRepGProp::SurfaceProperties(shape, props, false, false), Mass()
 //   mass       BRepGProp::VolumeProperties(shape, props, true, false, false),
 //              |Mass()| and CentreOfMass()
@@ -36,36 +35,29 @@ constexpr size_t SEED_VALID = 927906397u;
 KAPY_API int32_t kapy_area(uint32_t ptr, uint32_t length) noexcept {
     return ask("getShapeArea", SEED_AREA, ptr, length, [](Blob& in, Out& out) {
         Entry& entry = need(in.u32());
-        out.f64(declining("getShapeArea", [&] {
-            GProp_GProps props;
-            BRepGProp::SurfaceProperties(entry.shape, props, false, false);
-            return props.Mass();
-        }));
+        GProp_GProps props;
+        BRepGProp::SurfaceProperties(entry.shape, props, false, false);
+        out.f64(props.Mass());
     });
 }
 
 KAPY_API int32_t kapy_mass_props(uint32_t ptr, uint32_t length) noexcept {
     return ask("getShapeMassProps", SEED_MASS, ptr, length, [](Blob& in, Out& out) {
         Entry& entry = need(in.u32());
-        declining("getShapeMassProps", [&] {
-            GProp_GProps props;
-            BRepGProp::VolumeProperties(entry.shape, props, true, false, false);
-            const gp_Pnt c = props.CentreOfMass();
-            out.f64(std::fabs(props.Mass()));
-            out.f64(c.X());
-            out.f64(c.Y());
-            out.f64(c.Z());
-            return 0;
-        });
+        GProp_GProps props;
+        BRepGProp::VolumeProperties(entry.shape, props, true, false, false);
+        const gp_Pnt c = props.CentreOfMass();
+        out.f64(std::fabs(props.Mass()));
+        out.f64(c.X());
+        out.f64(c.Y());
+        out.f64(c.Z());
     });
 }
 
 KAPY_API int32_t kapy_is_valid(uint32_t ptr, uint32_t length) noexcept {
     return ask("getShapeIsValid", SEED_VALID, ptr, length, [](Blob& in, Out& out) {
         Entry& entry = need(in.u32());
-        out.u8(declining("getShapeIsValid", [&] {
-            BRepCheck_Analyzer analyzer(entry.shape, true, false);
-            return analyzer.IsValid() ? 1 : 0;
-        }));
+        BRepCheck_Analyzer analyzer(entry.shape, true, false);
+        out.u8(analyzer.IsValid() ? 1 : 0);
     });
 }

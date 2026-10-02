@@ -2,9 +2,11 @@
 //
 // The parts of the C API that are not an operation: the ABI version, memory
 // the host writes into, the result arena, the last error and the self-test.
-// The self-test is the boot check of this transport: it builds a box inside
-// the kernel and walks the store and the measurements over it, so a link that
-// is broken in any of them is known at boot and not at the first regen.
+// The self-test is the boot check of the kernel: it builds a box inside the
+// kernel and walks the store and the measurements over it, so a link that is
+// broken in any of them is known at boot and not at the first regen, and then
+// asks for the boolean history of edges and vertices (capiSelfTestHistory.cpp),
+// whose words ride in the last error's message when it is incomplete.
 //
 // Who includes it: the embind link (see ../CMakeLists.txt).
 // What does NOT belong here: the operations (capiOps.cpp) and the embind
@@ -19,6 +21,7 @@
 #include <BRepPrimAPI_MakeBox.hxx>
 #include <Standard_Failure.hxx>
 
+#include "capiSelfTest.hxx"
 #include "capiState.hxx"
 #include "capiStore.hxx"
 #include "kapy_capi.h"
@@ -28,17 +31,20 @@ namespace kapy_capi {
 namespace {
 std::vector<uint8_t> g_arena;
 int32_t g_code = 0;
+int32_t g_arg = 0;
 std::string g_message;
 int g_perturb = 0;
 }  // namespace
 
 void begin() {
     g_code = 0;
+    g_arg = 0;
     g_message.clear();
 }
 
-int32_t fail(int32_t code, const char* message) {
+int32_t fail(int32_t code, const char* message, int32_t arg) {
     g_code = code;
+    g_arg = arg;
     g_message = message;
     g_arena.clear();
     return code;
@@ -80,6 +86,8 @@ KAPY_API uint32_t kapy_result_len() noexcept { return static_cast<uint32_t>(g_ar
 
 KAPY_API int32_t kapy_error() noexcept { return g_code; }
 
+KAPY_API int32_t kapy_error_arg() noexcept { return g_arg; }
+
 KAPY_API int32_t kapy_error_message() noexcept {
     const std::string text = g_message;
     const int32_t code = g_code;
@@ -90,12 +98,14 @@ KAPY_API int32_t kapy_error_message() noexcept {
 }
 
 // Returns 0 when every check passed, else the number of the first that did
-// not. The perturbation is held off while it runs: the self-test certifies
-// the link, not the red control.
+// not (12: the boolean history is incomplete, said in `kapy_error_message`).
+// The perturbation is held off while it runs: the self-test certifies the
+// link, not the red control.
 KAPY_API int32_t kapy_self_test() noexcept {
     const int held = perturbation();
     setPerturbation(0);
     int32_t verdict = 0;
+    std::string words;
     try {
         BRepPrimAPI_MakeBox box(1.0, 2.0, 3.0);
         const uint32_t handle = put(box.Shape());
@@ -131,10 +141,15 @@ KAPY_API int32_t kapy_self_test() noexcept {
         if (!verdict && (find(handle) != nullptr || kapy_volume(handle) != KAPY_E_UNKNOWN_HANDLE)) {
             verdict = 10;
         }
+        if (!verdict) words = historyVerdict();
     } catch (...) {
         verdict = 11;
     }
     setPerturbation(held);
     begin();
+    if (!verdict && !words.empty()) {
+        fail(KAPY_E_FAILED, words.c_str());
+        return 12;
+    }
     return verdict;
 }

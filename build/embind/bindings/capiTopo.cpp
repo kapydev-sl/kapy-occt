@@ -97,19 +97,13 @@ std::vector<uint8_t> seamMask(Entry& entry) {
 KAPY_API int32_t kapy_face_edges(uint32_t ptr, uint32_t length) noexcept {
     return ask("topoAdjacency", SEED_ADJACENCY, ptr, length, [](Blob& in, Out& out) {
         Entry& entry = need(in.u32());
-        declining("topoAdjacency", [&] {
-            faceEdges(entry, out);
-            return 0;
-        });
+        faceEdges(entry, out);
     });
 }
 
 KAPY_API int32_t kapy_seam_edges(uint32_t ptr, uint32_t length) noexcept {
     return ask("seamEdges", SEED_SEAM, ptr, length, [](Blob& in, Out& out) {
         Entry& entry = need(in.u32());
-        declining("seamEdges", [&] {
-            for (uint8_t m : seamMask(entry)) out.u8(m);
-            return 0;
-        });
+        for (uint8_t m : seamMask(entry)) out.u8(m);
     });
 }

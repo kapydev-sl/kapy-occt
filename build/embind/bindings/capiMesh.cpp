@@ -71,20 +71,17 @@ KAPY_API int32_t kapy_mesh(uint32_t ptr, uint32_t length) noexcept {
         const double linear = in.f64();
         const double angular = in.f64();
         const std::vector<uint8_t> planar = readFlags(in);
-        declining("meshShape", [&] {
-            BodyMesh mesh;
-            meshBody(entry, linear, angular, planar, mesh);
-            const std::vector<float> normals = vertexNormals(mesh.positions, mesh.indices);
-            const std::vector<uint8_t> seams = seamMask(entry);
-            shiftForTest(mesh.positions);
-            putArray(out, mesh.positions);
-            putArray(out, mesh.indices);
-            putArray(out, mesh.triFace);
-            out.bytes(normals.data(), normals.size() * sizeof(float));
-            putEdges(out, mesh);
-            putArray(out, seams);
-            return 0;
-        });
+        BodyMesh mesh;
+        meshBody(entry, linear, angular, planar, mesh);
+        const std::vector<float> normals = vertexNormals(mesh.positions, mesh.indices);
+        const std::vector<uint8_t> seams = seamMask(entry);
+        shiftForTest(mesh.positions);
+        putArray(out, mesh.positions);
+        putArray(out, mesh.indices);
+        putArray(out, mesh.triFace);
+        out.bytes(normals.data(), normals.size() * sizeof(float));
+        putEdges(out, mesh);
+        putArray(out, seams);
     });
 }
 
@@ -102,17 +99,14 @@ KAPY_API int32_t kapy_hlr_input(uint32_t ptr, uint32_t length) noexcept {
                        bodies.push_back(&need(in.u32()));
                        flags.push_back(readFlags(in));
                    }
-                   declining("projectHLR", [&] {
-                       out.u32(count);
-                       for (uint32_t i = 0; i < count; i++) {
-                           BodyMesh mesh;
-                           meshBody(*bodies[i], linear, angular, flags[i], mesh);
-                           shiftForTest(mesh.positions);
-                           putArray(out, mesh.positions);
-                           putArray(out, mesh.indices);
-                           putEdges(out, mesh);
-                       }
-                       return 0;
-                   });
+                   out.u32(count);
+                   for (uint32_t i = 0; i < count; i++) {
+                       BodyMesh mesh;
+                       meshBody(*bodies[i], linear, angular, flags[i], mesh);
+                       shiftForTest(mesh.positions);
+                       putArray(out, mesh.positions);
+                       putArray(out, mesh.indices);
+                       putEdges(out, mesh);
+                   }
                });
 }
