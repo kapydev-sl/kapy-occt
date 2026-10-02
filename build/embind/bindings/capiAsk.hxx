@@ -37,6 +37,12 @@ public:
 
     void f64(double v) { raw(&v, 8); }
 
+    void f32(float v) { raw(&v, 4); }
+
+    // `n` bytes as they are in memory (an array of the little-endian values the
+    // other writers write one by one).
+    void bytes(const void* p, size_t n) { raw(p, n); }
+
     const std::vector<uint8_t>& bytes() const { return bytes_; }
 
     // Answer these bytes (an empty answer is "nothing").

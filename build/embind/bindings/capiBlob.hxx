@@ -66,6 +66,17 @@ public:
         return s;
     }
 
+    // The next `n` bytes, in place (they stay the caller's to copy).
+    const uint8_t* take(size_t n) {
+        need(n);
+        const uint8_t* at = p_;
+        p_ += n;
+        return at;
+    }
+
+    // How many bytes are left to read.
+    size_t remaining() const { return static_cast<size_t>(end_ - p_); }
+
     // Whether every byte was read.
     bool done() const { return p_ == end_; }
 

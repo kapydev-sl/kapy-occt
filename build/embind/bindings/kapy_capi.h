@@ -147,3 +147,17 @@ KAPY_API int32_t kapy_face_surface(uint32_t ptr, uint32_t length) noexcept;
 KAPY_API int32_t kapy_face_normal(uint32_t ptr, uint32_t length) noexcept;
 KAPY_API int32_t kapy_face_polylines(uint32_t ptr, uint32_t length) noexcept;
 KAPY_API int32_t kapy_face_wires(uint32_t ptr, uint32_t length) noexcept;
+
+// `kapy_mesh` / `kapy_hlr_input`                     (capiMesh.cpp)
+// `kapy_brep_write` / `kapy_brep_read`               (capiBrepIo.cpp)
+// `kapy_export_stl` / `kapy_export_step`             (capiExport.cpp)
+// `kapy_import_step`                                 (capiImportStep.cpp)
+// `kapy_import_mesh`                                 (capiImportMesh.cpp)
+KAPY_API int32_t kapy_mesh(uint32_t ptr, uint32_t length) noexcept;
+KAPY_API int32_t kapy_hlr_input(uint32_t ptr, uint32_t length) noexcept;
+KAPY_API int32_t kapy_brep_write(uint32_t ptr, uint32_t length) noexcept;
+KAPY_API int32_t kapy_brep_read(uint32_t ptr, uint32_t length) noexcept;
+KAPY_API int32_t kapy_export_stl(uint32_t ptr, uint32_t length) noexcept;
+KAPY_API int32_t kapy_export_step(uint32_t ptr, uint32_t length) noexcept;
+KAPY_API int32_t kapy_import_step(uint32_t ptr, uint32_t length) noexcept;
+KAPY_API int32_t kapy_import_mesh(uint32_t ptr, uint32_t length) noexcept;

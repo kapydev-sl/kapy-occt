@@ -32,7 +32,9 @@ int32_t answerNothing();
 // translation goes a metre further along x, 6 every revolve turns around an
 // axis a metre further along x, 7 every blend runs at half its radius or
 // distance, 8 no two bodies ever touch and no point is ever inside one (the
-// contact and classification questions).
+// contact and classification questions), 9 every mesh the C API answers is a
+// millimetre further along x and the last byte of every B-Rep it writes is
+// flipped (the mesh and the exact bytes).
 int perturbation();
 void setPerturbation(int mode);
 

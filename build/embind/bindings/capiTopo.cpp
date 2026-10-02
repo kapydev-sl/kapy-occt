@@ -15,6 +15,8 @@
 // `n` u32 edge indices; seam edges one byte per edge, or nothing.
 //
 // Who includes it: the embind link (see ../CMakeLists.txt).
+// `seamMask` is shared with the mesh question (capiMesh.cpp), which answers the
+// mask beside the triangles.
 // What does NOT belong here: the store, the arena, the maps' construction.
 
 #include <algorithm>
@@ -26,6 +28,7 @@
 #include <TopoDS.hxx>
 
 #include "capiAsk.hxx"
+#include "capiMeshCore.hxx"
 
 using namespace kapy_capi;
 
@@ -54,7 +57,11 @@ void faceEdges(Entry& entry, Out& out) {
     }
 }
 
-void seamEdges(Entry& entry, Out& out) {
+}  // namespace
+
+namespace kapy_capi {
+
+std::vector<uint8_t> seamMask(Entry& entry) {
     ensureMaps(entry);
     const int edgeCount = entry.edges.Extent();
     std::vector<uint8_t> mask(static_cast<size_t>(edgeCount), 0);
@@ -81,10 +88,11 @@ void seamEdges(Entry& entry, Out& out) {
             any = true;
         }
     }
-    if (!any) return;
-    for (uint8_t m : mask) out.u8(m);
+    if (!any) mask.clear();
+    return mask;
 }
-}  // namespace
+
+}  // namespace kapy_capi
 
 KAPY_API int32_t kapy_face_edges(uint32_t ptr, uint32_t length) noexcept {
     return ask("topoAdjacency", SEED_ADJACENCY, ptr, length, [](Blob& in, Out& out) {
@@ -100,7 +108,7 @@ KAPY_API int32_t kapy_seam_edges(uint32_t ptr, uint32_t length) noexcept {
     return ask("seamEdges", SEED_SEAM, ptr, length, [](Blob& in, Out& out) {
         Entry& entry = need(in.u32());
         declining("seamEdges", [&] {
-            seamEdges(entry, out);
+            for (uint8_t m : seamMask(entry)) out.u8(m);
             return 0;
         });
     });

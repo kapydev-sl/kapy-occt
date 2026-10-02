@@ -7,6 +7,7 @@
 
 #include "capiStore.hxx"
 
+#include "capiImportCache.hxx"
 #include "capiMemo.hxx"
 
 #include <unordered_map>
@@ -91,6 +92,7 @@ void reset(bool bumpEpoch) {
     g_dropped.clear();
     g_minted.clear();
     memoClear();
+    clearImportCaches();
     g_serial = 0;
     if (bumpEpoch) g_epoch = (g_epoch + 1) & 0xff;
 }
