@@ -121,3 +121,29 @@ KAPY_API int32_t kapy_blend_attempt(uint32_t ptr, uint32_t length) noexcept;
 KAPY_API int32_t kapy_thick_solid(uint32_t ptr, uint32_t length) noexcept;
 KAPY_API int32_t kapy_offset_solid(uint32_t ptr, uint32_t length) noexcept;
 KAPY_API int32_t kapy_offset_faces(uint32_t ptr, uint32_t length) noexcept;
+
+// The questions: what the kernel measures, classifies and walks, each over one
+// blob `(ptr, length)` that starts with the handle(s) it asks about and each
+// answering its bytes in the arena. None mints or stores a shape, none is
+// memoised. An unknown handle is `KAPY_E_UNKNOWN_HANDLE`; anything the kernel
+// raises while it works is `KAPY_E_DECLINED`, so the host asks the same
+// question over JSON, which words the failure. The layouts are in the
+// capi*.cpp file of each function.
+//
+// `kapy_area` / `kapy_mass_props` / `kapy_is_valid`  (capiMeasure.cpp)
+// `kapy_shapes_intersect`                            (capiContact.cpp)
+// `kapy_classify_point`                              (capiClassify.cpp)
+// `kapy_face_edges` / `kapy_seam_edges`              (capiTopo.cpp)
+// `kapy_face_surface` / `kapy_face_normal`           (capiFace.cpp)
+// `kapy_face_polylines` / `kapy_face_wires`          (capiContours.cpp)
+KAPY_API int32_t kapy_area(uint32_t ptr, uint32_t length) noexcept;
+KAPY_API int32_t kapy_mass_props(uint32_t ptr, uint32_t length) noexcept;
+KAPY_API int32_t kapy_is_valid(uint32_t ptr, uint32_t length) noexcept;
+KAPY_API int32_t kapy_shapes_intersect(uint32_t ptr, uint32_t length) noexcept;
+KAPY_API int32_t kapy_classify_point(uint32_t ptr, uint32_t length) noexcept;
+KAPY_API int32_t kapy_face_edges(uint32_t ptr, uint32_t length) noexcept;
+KAPY_API int32_t kapy_seam_edges(uint32_t ptr, uint32_t length) noexcept;
+KAPY_API int32_t kapy_face_surface(uint32_t ptr, uint32_t length) noexcept;
+KAPY_API int32_t kapy_face_normal(uint32_t ptr, uint32_t length) noexcept;
+KAPY_API int32_t kapy_face_polylines(uint32_t ptr, uint32_t length) noexcept;
+KAPY_API int32_t kapy_face_wires(uint32_t ptr, uint32_t length) noexcept;

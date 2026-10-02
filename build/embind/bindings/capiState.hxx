@@ -31,7 +31,8 @@ int32_t answerNothing();
 // prism sweeps a metre further along z, 4 every cut runs as a common, 5 every
 // translation goes a metre further along x, 6 every revolve turns around an
 // axis a metre further along x, 7 every blend runs at half its radius or
-// distance.
+// distance, 8 no two bodies ever touch and no point is ever inside one (the
+// contact and classification questions).
 int perturbation();
 void setPerturbation(int mode);
 
