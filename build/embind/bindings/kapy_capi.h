@@ -122,6 +122,13 @@ KAPY_API int32_t kapy_thick_solid(uint32_t ptr, uint32_t length) noexcept;
 KAPY_API int32_t kapy_offset_solid(uint32_t ptr, uint32_t length) noexcept;
 KAPY_API int32_t kapy_offset_faces(uint32_t ptr, uint32_t length) noexcept;
 
+// The swept volume of a solid along a ray, and the clearance cut built on it
+// (the analytic channel; the mesh channel stays on the JSON route):
+// `kapy_sweep_ray`                                   (capiSweepRay.cpp)
+// `kapy_clearance_cut`                               (capiClearanceCut.cpp)
+KAPY_API int32_t kapy_sweep_ray(uint32_t ptr, uint32_t length) noexcept;
+KAPY_API int32_t kapy_clearance_cut(uint32_t ptr, uint32_t length) noexcept;
+
 // The questions: what the kernel measures, classifies and walks, each over one
 // blob `(ptr, length)` that starts with the handle(s) it asks about and each
 // answering its bytes in the arena. None mints or stores a shape, none is

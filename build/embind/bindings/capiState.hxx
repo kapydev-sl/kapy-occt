@@ -34,7 +34,8 @@ int32_t answerNothing();
 // distance, 8 no two bodies ever touch and no point is ever inside one (the
 // contact and classification questions), 9 every mesh the C API answers is a
 // millimetre further along x and the last byte of every B-Rep it writes is
-// flipped (the mesh and the exact bytes).
+// flipped (the mesh and the exact bytes), 10 every sweep along a ray reaches a
+// tenth as far (the swept volume and the clearance cut).
 int perturbation();
 void setPerturbation(int mode);
 
