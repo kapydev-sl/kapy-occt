@@ -1,19 +1,19 @@
 #!/bin/sh
-# services/occt/build/embind/rebuild.sh
+# engine/kernels/occt/build/embind/rebuild.sh
 #
 # Links the bindings (including the C API, bindings/kapy_capi.h) against the
 # OCCT toolkits of the builder image and prints the sha256 of the result. With
 # `--twice` it links a second time from scratch and fails unless both links
 # give the same bytes (the determinism the kernel promises).
 #
-#   services/occt/build/embind/rebuild.sh [--twice] [--publish]
+#   engine/kernels/occt/build/embind/rebuild.sh [--twice] [--publish]
 #
-# `--publish` copies kapy-occt.{js,wasm} to services/occt/dist/. A kernel
+# `--publish` copies kapy-occt.{js,wasm} to engine/kernels/occt/dist/. A kernel
 # binary is committed only at the checkpoints the plan names (D175); the rest
 # of the time it is published locally and stays out of the commit.
 #
 # Needs the image: docker build --platform linux/amd64 -t kapy-occt-builder:wasm-eh \
-#   services/occt/build/embind
+#   engine/kernels/occt/build/embind
 set -eu
 
 here=$(cd "$(dirname "$0")" && pwd)
@@ -41,5 +41,5 @@ if [ "${1:-}" = "--twice" ] || [ "${2:-}" = "--twice" ]; then
 fi
 if [ "${1:-}" = "--publish" ] || [ "${2:-}" = "--publish" ]; then
     cp "$out/a/kapy-occt.js" "$out/a/kapy-occt.wasm" "$here/../../dist/"
-    echo "published to services/occt/dist"
+    echo "published to engine/kernels/occt/dist"
 fi

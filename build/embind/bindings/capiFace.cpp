@@ -1,4 +1,4 @@
-// services/occt/build/embind/bindings/capiFace.cpp
+// engine/kernels/occt/build/embind/bindings/capiFace.cpp
 //
 // What the kernel alone knows about one face, for `getFaceGeometry`:
 //   surface   what kind of surface the face lies on and, for a cylinder, its

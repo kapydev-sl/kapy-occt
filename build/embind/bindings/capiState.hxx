@@ -1,4 +1,4 @@
-// services/occt/build/embind/bindings/capiState.hxx
+// engine/kernels/occt/build/embind/bindings/capiState.hxx
 //
 // What the C entry points share: the result arena, the last error and the
 // test-only perturbation. One definition (capiCore.cpp), so an operation file

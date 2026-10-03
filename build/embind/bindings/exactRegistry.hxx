@@ -1,4 +1,4 @@
-// services/occt/build/embind/bindings/exactRegistry.hxx
+// engine/kernels/occt/build/embind/bindings/exactRegistry.hxx
 //
 // Which geometry classes the exact B-Rep knows it writes exactly, and how.
 // A class not listed here — a new OCCT class, a subclass of a listed one —

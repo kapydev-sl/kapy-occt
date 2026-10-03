@@ -1,8 +1,8 @@
-// services/occt/build/embind/bindings/factsElements.cpp
+// engine/kernels/occt/build/embind/bindings/factsElements.cpp
 //
 // The per-element facts of a shape's three maps: the raw rows as the facts'
-// ELEMENTS block carries them (the same rows `KapyNamer.faceProps` /
-// `edgeProps` / `vertexProps` write), and the JSON of one element's props for
+// ELEMENTS block carries them (the same rows `face_props` /
+// `edge_props` / `vertex_props` (namer.cpp) write), and the JSON of one element's props for
 // a piece's missing elements. `mapsOf` reads the three maps off the
 // JavaScript object that holds them.
 //

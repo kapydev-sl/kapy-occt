@@ -1,4 +1,4 @@
-// services/occt/build/embind/bindings/capiOffsetFaces.cpp
+// engine/kernels/occt/build/embind/bindings/capiOffsetFaces.cpp
 //
 // Offset of only the picked faces of a solid through the C API:
 // `runOffsetFaces` (+ its slab fallback) of the binding. The plan arrives as

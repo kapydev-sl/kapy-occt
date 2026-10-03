@@ -1,4 +1,4 @@
-// services/occt/build/embind/bindings/capiFinish.cpp
+// engine/kernels/occt/build/embind/bindings/capiFinish.cpp
 //
 // The end of a C build operation; see capiFinish.hxx. The unify step repeats
 // `unifyFuse.ts` call for call: the same tolerances, the same refusals in the
@@ -166,11 +166,7 @@ uint32_t finishHistoryOfMakers(const TopoDS_Shape& shape,
 }
 
 void dropNamed(uint32_t handle) {
-    Entry* entry = find(handle);
-    if (!entry) return;
-    const uint32_t table = entry->tableId;
     release(handle, false);
-    if (table != 0) kapy_facts::release(table);
 }
 
 uint32_t finishSolid(const TopoDS_Shape& shape, const Finish& how) {

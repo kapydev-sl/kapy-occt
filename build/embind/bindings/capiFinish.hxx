@@ -1,4 +1,4 @@
-// services/occt/build/embind/bindings/capiFinish.hxx
+// engine/kernels/occt/build/embind/bindings/capiFinish.hxx
 //
 // How a C build operation ends: the shape it built is named as an extrude
 // result, collapsed of the seams its constructor left when that simplifies it

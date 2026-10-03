@@ -1,4 +1,4 @@
-// services/occt/build/embind/bindings/capiSplit.cpp
+// engine/kernels/occt/build/embind/bindings/capiSplit.cpp
 //
 // Take the top-level solids of a stored shape apart through the C API:
 // `runSplitSolids` of the binding. Each solid becomes a stored shape of its own

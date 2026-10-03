@@ -1,4 +1,4 @@
-// services/occt/build/embind/bindings/capiContact.cpp
+// engine/kernels/occt/build/embind/bindings/capiContact.cpp
 //
 // `kapy_shapes_intersect`: do two stored solids touch or overlap. The
 // binding's own predicate (binding/runShapesIntersect.ts), step for step:

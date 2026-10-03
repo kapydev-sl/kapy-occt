@@ -1,4 +1,4 @@
-// services/occt/build/embind/bindings/capiImportStep.cpp
+// engine/kernels/occt/build/embind/bindings/capiImportStep.cpp
 //
 // STEP import through the C API: `runImportStep` of importShape.ts call for
 // call. The file's bytes are written to a file of emscripten's FS (OCCT's reader

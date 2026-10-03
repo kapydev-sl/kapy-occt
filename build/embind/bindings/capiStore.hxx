@@ -1,4 +1,4 @@
-// services/occt/build/embind/bindings/capiStore.hxx
+// engine/kernels/occt/build/embind/bindings/capiStore.hxx
 //
 // The kernel's table of shapes, in C++: the one place a handle is minted,
 // counted and dropped, for the embind side (the TypeScript shape cache mints

@@ -1,4 +1,4 @@
-// services/occt/build/embind/bindings/capiOffsetSlab.hxx
+// engine/kernels/occt/build/embind/bindings/capiOffsetSlab.hxx
 //
 // The last resort for Offset Faces (`runOffsetFaces.slab.ts`): for the small
 // distances a fit clearance uses, thicken each picked face into a thin slab of

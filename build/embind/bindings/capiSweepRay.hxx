@@ -1,4 +1,4 @@
-// services/occt/build/embind/bindings/capiSweepRay.hxx
+// engine/kernels/occt/build/embind/bindings/capiSweepRay.hxx
 //
 // The swept volume of a solid along a ray, shared by the two operations that
 // build one (`kapy_sweep_ray`, `kapy_clearance_cut`): the part fused with the

@@ -1,11 +1,11 @@
-# services/occt/build/embind/Dockerfile
+# engine/kernels/occt/build/embind/Dockerfile
 #
 # The toolchain of the kernel: compile OCCT 8.0 to static WASM libs with a
 # modern Emscripten, so our bindings (kapy_bindings.cpp and bindings/) can link
 # against them. We own the kernel version and the exposed API.
 #
 # Build the image (produces /opt/occt with static .a toolkits):
-#   docker build --platform linux/amd64 -t kapy-occt-builder:wasm-eh services/occt/build/embind
+#   docker build --platform linux/amd64 -t kapy-occt-builder:wasm-eh engine/kernels/occt/build/embind
 #
 # Then link the bindings against it with rebuild.sh (see ../README.md).
 #

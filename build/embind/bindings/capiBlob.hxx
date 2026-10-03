@@ -1,4 +1,4 @@
-// services/occt/build/embind/bindings/capiBlob.hxx
+// engine/kernels/occt/build/embind/bindings/capiBlob.hxx
 //
 // How a C build operation reads its arguments: one little-endian blob the
 // Rust core wrote (`engine/crates/kpy-core/src/kernel/capi_build/`), read

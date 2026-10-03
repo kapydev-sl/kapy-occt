@@ -1,4 +1,4 @@
-// services/occt/build/embind/bindings/capiOffset.cpp
+// engine/kernels/occt/build/embind/bindings/capiOffset.cpp
 //
 // Offset of a whole solid by a signed distance through the C API:
 // `runOffsetSolid` of the binding (`runOffsetSolid.ts`). The arc join goes

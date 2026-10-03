@@ -1,4 +1,4 @@
-// services/occt/build/embind/bindings/capiStore.cpp
+// engine/kernels/occt/build/embind/bindings/capiStore.cpp
 //
 // The shape table behind the handles (see capiStore.hxx for the contract).
 //
@@ -9,7 +9,9 @@
 
 #include "capiImportCache.hxx"
 #include "capiMemo.hxx"
+#include "factsLog.hxx"
 
+#include <algorithm>
 #include <unordered_map>
 
 #include <TopExp.hxx>
@@ -74,6 +76,9 @@ int32_t release(uint32_t handle, bool queueDropped) {
     auto it = g_entries.find(handle);
     if (it == g_entries.end()) return -1;
     if (--it->second.refs > 0) return static_cast<int32_t>(it->second.refs);
+    // The naming table goes with its last owner: the core learns it from the
+    // facts log, so nobody else has to remember to free it.
+    if (it->second.tableId != 0) kapy_facts::release(it->second.tableId);
     g_entries.erase(it);
     if (queueDropped) g_dropped.push_back(handle);
     return 0;
@@ -88,6 +93,13 @@ void ensureMaps(Entry& entry) {
 }
 
 void reset(bool bumpEpoch) {
+    // Every table of an entry that dies here is released, in id order.
+    std::vector<uint32_t> tables;
+    for (const auto& kv : g_entries) {
+        if (kv.second.tableId != 0) tables.push_back(kv.second.tableId);
+    }
+    std::sort(tables.begin(), tables.end());
+    for (uint32_t id : tables) kapy_facts::release(id);
     g_entries.clear();
     g_dropped.clear();
     g_minted.clear();

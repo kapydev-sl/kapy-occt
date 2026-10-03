@@ -1,4 +1,4 @@
-// services/occt/build/embind/bindings/capiSweep.cpp
+// engine/kernels/occt/build/embind/bindings/capiSweep.cpp
 //
 // The pipe sweeps of the C API: a profile (or a face with holes) carried along
 // a path wire of sketch segments with `BRepOffsetAPI_MakePipe`. It is

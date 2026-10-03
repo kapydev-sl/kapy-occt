@@ -1,4 +1,4 @@
-// services/occt/build/embind/bindings/capiMeasure.cpp
+// engine/kernels/occt/build/embind/bindings/capiMeasure.cpp
 //
 // The whole-shape measures of the C API: surface area, volume with centre of
 // mass, and whether the B-Rep passes BRepCheck. Each is the binding's own

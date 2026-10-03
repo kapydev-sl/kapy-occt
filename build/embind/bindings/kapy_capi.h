@@ -1,4 +1,4 @@
-// services/occt/build/embind/bindings/kapy_capi.h
+// engine/kernels/occt/build/embind/bindings/kapy_capi.h
 //
 // The C API of the kernel, ABI version 1: the functions `kpy-core.wasm` (Rust)
 // reaches OCCT with. It is the only way into the kernel for a shape build or a
@@ -9,13 +9,13 @@
 // the next call overwrites.
 //
 // The declarations are also the source of the stub table the host generates
-// (utils/scripts/build/capi-stubs.mjs reads the `KAPY_API` lines: one per
-// line, C types from a short list), so a signature is changed here and the
+// (utils/scripts/build/capi-stubs.mjs reads the `KAPY_API` and `KAPY_HOST_API`
+// lines: one per line, C types from a short list), so a signature is changed here and the
 // generator re-run, never the other way round.
 //
 // Who includes it: the capi*.cpp files of the link.
 // What does NOT belong here: OCCT types (the boundary is numbers and bytes),
-// the embind registrations (capiEmbind.cpp).
+// the test-only embind registrations (capiEmbind.cpp).
 
 #pragma once
 
@@ -24,6 +24,9 @@
 #include <emscripten/emscripten.h>
 
 #define KAPY_API extern "C" EMSCRIPTEN_KEEPALIVE
+// A function only the host calls (the store's plumbing, capiPlumb.cpp): same
+// linkage, and the generator marks it so Rust declares no extern for it.
+#define KAPY_HOST_API extern "C" EMSCRIPTEN_KEEPALIVE
 
 // The version of this header's contract. A host that binds stubs built for
 // another version refuses the kernel instead of calling into a moved table.
@@ -68,7 +71,7 @@ KAPY_API int32_t kapy_error_arg() noexcept;
 
 // Handles. `kapy_release` takes `count` u32 handles at `ptr`; an unknown one
 // is skipped (a second release is not an error, as a second release is harmless), and
-// the handles it dropped are queued for the host (`Kapy_StoreTakeDropped`).
+// the handles it dropped are queued for the host (`kapy_take_dropped`).
 // `kapy_retain` answers the new count.
 KAPY_API int32_t kapy_release(uint32_t ptr, uint32_t count) noexcept;
 KAPY_API int32_t kapy_retain(uint32_t handle) noexcept;
@@ -136,6 +139,10 @@ KAPY_API int32_t kapy_offset_faces(uint32_t ptr, uint32_t length) noexcept;
 KAPY_API int32_t kapy_sweep_ray(uint32_t ptr, uint32_t length) noexcept;
 KAPY_API int32_t kapy_clearance_cut(uint32_t ptr, uint32_t length) noexcept;
 
+// The solid of a channel the host swept in the mesh domain, rebuilt from the
+// welded mesh and its regions (capiChannel.cpp); the cut is Rust's.
+KAPY_API int32_t kapy_channel_solid(uint32_t ptr, uint32_t length) noexcept;
+
 // The questions: what the kernel measures, classifies and walks, each over one
 // blob `(ptr, length)` that starts with the handle(s) it asks about and each
 // answering its bytes in the arena. None mints or stores a shape, none is
@@ -150,6 +157,7 @@ KAPY_API int32_t kapy_clearance_cut(uint32_t ptr, uint32_t length) noexcept;
 // `kapy_face_edges` / `kapy_seam_edges`              (capiTopo.cpp)
 // `kapy_face_surface` / `kapy_face_normal`           (capiFace.cpp)
 // `kapy_face_polylines` / `kapy_face_wires`          (capiContours.cpp)
+// `kapy_min_distance` / `kapy_face_boundary`         (capiQuery.cpp)
 KAPY_API int32_t kapy_area(uint32_t ptr, uint32_t length) noexcept;
 KAPY_API int32_t kapy_mass_props(uint32_t ptr, uint32_t length) noexcept;
 KAPY_API int32_t kapy_is_valid(uint32_t ptr, uint32_t length) noexcept;
@@ -161,6 +169,8 @@ KAPY_API int32_t kapy_face_surface(uint32_t ptr, uint32_t length) noexcept;
 KAPY_API int32_t kapy_face_normal(uint32_t ptr, uint32_t length) noexcept;
 KAPY_API int32_t kapy_face_polylines(uint32_t ptr, uint32_t length) noexcept;
 KAPY_API int32_t kapy_face_wires(uint32_t ptr, uint32_t length) noexcept;
+KAPY_API int32_t kapy_min_distance(uint32_t ptr, uint32_t length) noexcept;
+KAPY_API int32_t kapy_face_boundary(uint32_t ptr, uint32_t length) noexcept;
 
 // What the blend and shell recipes read off a body around their attempts:
 // `kapy_topology`                                    (capiTopoGraph.cpp)
@@ -186,3 +196,17 @@ KAPY_API int32_t kapy_export_stl(uint32_t ptr, uint32_t length) noexcept;
 KAPY_API int32_t kapy_export_step(uint32_t ptr, uint32_t length) noexcept;
 KAPY_API int32_t kapy_import_step(uint32_t ptr, uint32_t length) noexcept;
 KAPY_API int32_t kapy_import_mesh(uint32_t ptr, uint32_t length) noexcept;
+
+// What only the host calls, around the operations (capiPlumb.cpp): start the
+// store over, count its shapes, drain the handles the C operations minted or a
+// release dropped (each a pointer to `[count, handle...]` u32s), and keep the
+// naming tables a cache hands back.
+KAPY_HOST_API void kapy_reset(uint32_t bumpEpoch) noexcept;
+KAPY_HOST_API uint32_t kapy_live() noexcept;
+KAPY_HOST_API uint32_t kapy_epoch() noexcept;
+KAPY_HOST_API uint32_t kapy_take_minted() noexcept;
+KAPY_HOST_API uint32_t kapy_take_dropped() noexcept;
+KAPY_HOST_API int32_t kapy_table_adopt(uint32_t ptr, uint32_t length) noexcept;
+KAPY_HOST_API int32_t kapy_table_bind(uint32_t id, uint32_t handle) noexcept;
+KAPY_HOST_API void kapy_table_release(uint32_t id) noexcept;
+KAPY_HOST_API uint32_t kapy_table_of(uint32_t handle) noexcept;

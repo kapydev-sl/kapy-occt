@@ -1,14 +1,14 @@
-# services/occt/build/embind/CMakeLists.txt
+# engine/kernels/occt/build/embind/CMakeLists.txt
 #
-# Links kapy_bindings.cpp and bindings/*.cpp against the static OCCT 8.0
-# toolkits built into /opt/occt by the Dockerfile, emitting kapy-occt.js +
-# kapy-occt.wasm. Run under emcmake (the Dockerfile's emsdk provides the
+# Links bindings/*.cpp (the C API and the embind test levers) against the
+# static OCCT 8.0 toolkits built into /opt/occt by the Dockerfile, emitting
+# kapy-occt.js + kapy-occt.wasm. Run under emcmake (the Dockerfile's emsdk provides the
 # toolchain file); rebuild.sh does it.
 #
 #   emcmake cmake -B build && cmake --build build -j
 #
 # Output lands in build/kapy-occt.{js,wasm}; rebuild.sh --publish copies it to
-# services/occt/dist/.
+# engine/kernels/occt/dist/.
 
 cmake_minimum_required(VERSION 3.20)
 project(kapy_occt CXX)
@@ -30,10 +30,10 @@ find_package(OpenCASCADE REQUIRED
     PATHS "${OCCT_ROOT}/lib/cmake/opencascade" "${OCCT_ROOT}"
     NO_DEFAULT_PATH NO_CMAKE_FIND_ROOT_PATH)
 
-# The bindings are split by OCCT domain under bindings/ so no single file
-# carries every class; each contributes its own EMSCRIPTEN_BINDINGS block.
+# The kernel is the `kapy_*` C API split by operation under bindings/; embind
+# is linked only for the test levers of capiEmbind.cpp and exactBrep.cpp.
 file(GLOB KAPY_BINDING_SOURCES CONFIGURE_DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/bindings/*.cpp")
-add_executable(kapy-occt kapy_bindings.cpp ${KAPY_BINDING_SOURCES})
+add_executable(kapy-occt ${KAPY_BINDING_SOURCES})
 
 # OCCT signals every recoverable failure by throwing Standard_Failure, and the
 # kernel depends on catching it (the fillet retry, the shell tolerance

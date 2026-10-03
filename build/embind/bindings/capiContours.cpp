@@ -1,4 +1,4 @@
-// services/occt/build/embind/bindings/capiContours.cpp
+// engine/kernels/occt/build/embind/bindings/capiContours.cpp
 //
 // A face's outline as polylines, for the hover outline, the thread's rim and
 // the bounded clip of a sketch:

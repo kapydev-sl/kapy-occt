@@ -1,13 +1,13 @@
-// services/occt/build/embind/bindings/namerCore.hxx
+// engine/kernels/occt/build/embind/bindings/namerCore.hxx
 //
 // The arithmetic of the naming facts, shared by the two callers that need it:
-// the embind batch extractors (namer.cpp, `KapyNamer`) and the facts
-// collectors (facts*.cpp, `KapyFacts`, the C API's `kapy_facts_take`). One
+// the batch extractors (namer.cpp, `face_props` and friends) and the facts
+// collectors (facts*.cpp, the C API's `kapy_facts_take`). One
 // definition of every row, so the two can never disagree by a bit: the
 // signatures they produce are matched across regenerations.
 //
 // Who includes it: namer.cpp, facts*.cpp.
-// What does NOT belong here: the embind registrations, the facts log.
+// What does NOT belong here: any host registration, the facts log.
 
 #pragma once
 

@@ -1,4 +1,4 @@
-// services/occt/build/embind/bindings/capiRevolve.cpp
+// engine/kernels/occt/build/embind/bindings/capiRevolve.cpp
 //
 // The revolves of the C API: a profile (or a face with holes) turned around an
 // axis. It is `revolveProfile` / `revolveFaceWithHoles` of the TypeScript

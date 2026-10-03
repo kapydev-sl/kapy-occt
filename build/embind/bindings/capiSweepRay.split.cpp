@@ -1,4 +1,4 @@
-// services/occt/build/embind/bindings/capiSweepRay.split.cpp
+// engine/kernels/occt/build/embind/bindings/capiSweepRay.split.cpp
 //
 // The exact split of a mixed cylindrical face along its silhouette, so each
 // half prisms exactly instead of falling back to wedges

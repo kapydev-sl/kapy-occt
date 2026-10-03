@@ -1,6 +1,6 @@
 # kapy-occt: the OCCT 8.0 kernel, built from source
 
-This directory is everything needed to rebuild `services/occt/dist/kapy-occt.{js,wasm}`
+This directory is everything needed to rebuild `engine/kernels/occt/dist/kapy-occt.{js,wasm}`
 from the OCCT 8.0 sources, byte for byte. It is published as the public
 repository `kapydev-sl/kapy-occt` (LGPL-2.1, see `LICENSES.md` in the app
 repository).
@@ -23,7 +23,7 @@ callers that remain use a small Embind surface (see below).
 | `embind/bindings/exact*.{hxx,cpp}`        | The exact B-Rep container (CAD-exact documents); `exactBrep.cpp` binds only a test seam.                                                                                                                                                     |
 | `embind/bindings/*.cpp` (the rest)        | Embind registrations for the OCCT classes the TypeScript side still touches.                                                                                                                                                                 |
 | `embind/kapy_bindings.cpp`                | Embind core: the `TopoDS_*` shape types and their enums.                                                                                                                                                                                     |
-| `embind/rebuild.sh`                       | Links the module in Docker and prints the sha256; `--twice` proves determinism; `--publish` copies to `services/occt/dist/`.                                                                                                                 |
+| `embind/rebuild.sh`                       | Links the module in Docker and prints the sha256; `--twice` proves determinism; `--publish` copies to `engine/kernels/occt/dist/`.                                                                                                           |
 
 ## Patches to OCCT
 
@@ -49,13 +49,13 @@ only reproducible on the same image.
 
 ```bash
 # 1. The toolchain and the OCCT toolkits (long; cached in the image).
-docker build --platform linux/amd64 -t kapy-occt-builder:wasm-eh services/occt/build/embind
+docker build --platform linux/amd64 -t kapy-occt-builder:wasm-eh engine/kernels/occt/build/embind
 
 # 2. Link twice and compare. The two sha256 must be equal.
-services/occt/build/embind/rebuild.sh --twice
+engine/kernels/occt/build/embind/rebuild.sh --twice
 
-# 3. Publish locally (copies to services/occt/dist/).
-services/occt/build/embind/rebuild.sh --publish
+# 3. Publish locally (copies to engine/kernels/occt/dist/).
+engine/kernels/occt/build/embind/rebuild.sh --publish
 ```
 
 Then, in the app repository, `npm run build:workers` (twice; the second run
@@ -85,12 +85,9 @@ returns a negative `KAPY_E_*` code with the message in the result arena.
    Rust calls it directly; the TypeScript host only copies bytes between the
    two memories. This is where every shape build, every measurement and the
    naming facts go through.
-2. **Embind** (`--bind`). What is left: the TypeScript orchestrator's own
-   primitive shapes, the fresh (non-memoised) STL meshing, the HLR edge
-   convexity, and a few test seams (`Kapy_*ForTest`). The per-file count of
-   `oc.<name>` accesses in `src/` is frozen by
-   `tests/unit/guards/embindUsage.test.ts` and can only shrink as the
-   orchestrator moves to Rust.
+2. **Embind** (`--bind`). Only a few test seams (`Kapy_*ForTest`). No class is
+   registered: `src/` has no `oc.` access, and
+   `tests/unit/guards/embindUsage.test.ts` keeps it that way.
 
 ## Boot self-test
 
@@ -103,10 +100,10 @@ Rust runs it at worker boot and `console.warn`s on a failure.
 
 ## Verifying a kernel
 
-From the app repository, with the kernel in `services/occt/dist/`:
+From the app repository, with the kernel in `engine/kernels/occt/dist/`:
 
 ```bash
-npx vitest run tests/unit/workers tests/unit/topo tests/unit/e2e   # real OCCT, no mocks
+npx vitest run tests/unit/workers tests/unit/topo tests/integration   # real OCCT, no mocks
 npm run corpus:check && npm run corpus:ii:check                    # zero differences
 ```
 

@@ -1,4 +1,4 @@
-// services/occt/build/embind/bindings/exactBrep.hxx
+// engine/kernels/occt/build/embind/bindings/exactBrep.hxx
 //
 // The exact B-Rep as bytes: a shape written so that reading it gives the shape
 // back to the last bit (the format is described in exactBrepCore.cpp). The

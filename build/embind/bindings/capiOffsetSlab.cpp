@@ -1,4 +1,4 @@
-// services/occt/build/embind/bindings/capiOffsetSlab.cpp
+// engine/kernels/occt/build/embind/bindings/capiOffsetSlab.cpp
 //
 // The slab fallback of Offset Faces (see capiOffsetSlab.hxx), call for call
 // as `runOffsetFaces.slab.ts`: the thickening, the boolean that is built empty

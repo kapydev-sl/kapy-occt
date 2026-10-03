@@ -1,4 +1,4 @@
-# services/occt
+# engine/kernels/occt
 
 The OCCT 8.0 B-Rep kernel the app runs, as a WebAssembly module.
 
@@ -18,16 +18,16 @@ geometry the app cannot build.
   (`build/embind/bindings/kapy_capi.h`): every shape build and every question
   about a shape. The TypeScript host only moves bytes between the two memories
   (`src/cad/workers/rust/capi/`, `src/cad/workers/occt/capiBinding.ts`).
-- A small Embind surface remains for the orchestrator's own primitives, the
-  fresh STL meshing and the HLR convexity; the per-file count is frozen by
-  `tests/unit/guards/embindUsage.test.ts`.
+- No TypeScript touches an embind class: `tests/unit/guards/embindUsage.test.ts`
+  holds `src/` at zero `oc.` accesses. The only embind left in the module is
+  the test levers (`Kapy_*ForTest`).
 
 ## Rebuilding
 
 ```bash
-docker build --platform linux/amd64 -t kapy-occt-builder:wasm-eh services/occt/build/embind
-services/occt/build/embind/rebuild.sh --twice     # the two sha256 must match
-services/occt/build/embind/rebuild.sh --publish   # copies to dist/
+docker build --platform linux/amd64 -t kapy-occt-builder:wasm-eh engine/kernels/occt/build/embind
+engine/kernels/occt/build/embind/rebuild.sh --twice     # the two sha256 must match
+engine/kernels/occt/build/embind/rebuild.sh --publish   # copies to dist/
 npm run build:workers                              # twice; restamps the digests
 ```
 

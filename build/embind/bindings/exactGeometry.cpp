@@ -1,4 +1,4 @@
-// services/occt/build/embind/bindings/exactGeometry.cpp
+// engine/kernels/occt/build/embind/bindings/exactGeometry.cpp
 //
 // The frames of a shape set's geometry, carried exactly. OCCT's binary shape
 // set writes a frame's every double, but reads a direction through `gp_Dir`

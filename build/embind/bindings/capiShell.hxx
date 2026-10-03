@@ -1,4 +1,4 @@
-// services/occt/build/embind/bindings/capiShell.hxx
+// engine/kernels/occt/build/embind/bindings/capiShell.hxx
 //
 // The thick-solid attempts the shell runs, shared by the build (capiShell.cpp)
 // and the cleanup fallback that rebuilds the body first (capiShellCleanup.cpp).

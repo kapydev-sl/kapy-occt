@@ -1,4 +1,4 @@
-// services/occt/build/embind/bindings/capiTopo.cpp
+// engine/kernels/occt/build/embind/bindings/capiTopo.cpp
 //
 // Two questions of a body's topology, in the index order of the store's maps
 // (the order every TopoId resolves through):

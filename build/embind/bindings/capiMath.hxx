@@ -1,4 +1,4 @@
-// services/occt/build/embind/bindings/capiMath.hxx
+// engine/kernels/occt/build/embind/bindings/capiMath.hxx
 //
 // `Math.hypot`, as V8 computes it, for the few numbers the kernel normalises
 // itself: scale by the largest, Kahan-sum the squares, `sqrt`, scale back. The

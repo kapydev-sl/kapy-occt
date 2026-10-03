@@ -1,4 +1,4 @@
-// services/occt/build/embind/bindings/capiMeshEdges.cpp
+// engine/kernels/occt/build/embind/bindings/capiMeshEdges.cpp
 //
 // The two parts of a tessellation that are arithmetic rather than meshing: the
 // polyline each edge is drawn and picked with (`sampleEdgePolyline`) and the

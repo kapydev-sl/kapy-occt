@@ -1,4 +1,4 @@
-// services/occt/build/embind/bindings/capiHelix.cpp
+// engine/kernels/occt/build/embind/bindings/capiHelix.cpp
 //
 // The helical sweeps of the C API: a profile carried along a helix on a
 // cylinder around an axis, with a pipe shell whose binormal is locked to that

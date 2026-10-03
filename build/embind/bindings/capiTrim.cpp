@@ -1,4 +1,4 @@
-// services/occt/build/embind/bindings/capiTrim.cpp
+// engine/kernels/occt/build/embind/bindings/capiTrim.cpp
 //
 // Cut a solid at a plane through the C API: `runTrimByPlane` of the binding.
 // The discarded side is a box big enough to swallow the shape, turned so one

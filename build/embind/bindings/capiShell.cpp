@@ -1,4 +1,4 @@
-// services/occt/build/embind/bindings/capiShell.cpp
+// engine/kernels/occt/build/embind/bindings/capiShell.cpp
 //
 // Thick solid (the hollow of the Shell tool) through the C API: `runThickSolid`
 // of the binding with its ladder handed over as data. The openings are the

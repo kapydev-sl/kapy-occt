@@ -1,4 +1,4 @@
-// services/occt/build/embind/bindings/capiProfile.hxx
+// engine/kernels/occt/build/embind/bindings/capiProfile.hxx
 //
 // A sketch profile as a C build operation receives it, and the two steps that
 // turn it into OCCT: its segments lifted onto the plane as edges

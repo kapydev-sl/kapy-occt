@@ -1,4 +1,4 @@
-// services/occt/build/embind/bindings/capiMeshCore.hxx
+// engine/kernels/occt/build/embind/bindings/capiMeshCore.hxx
 //
 // What the C mesh questions share: one face's triangulation read out of OCCT
 // and checked, the polyline of an edge, the area-weighted vertex normals, and

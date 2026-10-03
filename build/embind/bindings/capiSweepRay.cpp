@@ -1,4 +1,4 @@
-// services/occt/build/embind/bindings/capiSweepRay.cpp
+// engine/kernels/occt/build/embind/bindings/capiSweepRay.cpp
 //
 // The swept volume of a solid along a ray through the C API: `runSweepRay` of
 // the binding (see capiSweepRay.hxx for the construction). The core is shared

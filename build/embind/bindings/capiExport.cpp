@@ -1,4 +1,4 @@
-// services/occt/build/embind/bindings/capiExport.cpp
+// engine/kernels/occt/build/embind/bindings/capiExport.cpp
 //
 // STL and STEP export through the C API: `exportShape.ts` call for call. The
 // shapes are packed into one compound, written to a file of emscripten's FS

@@ -1,4 +1,4 @@
-# services/occt/build/embind
+# engine/kernels/occt/build/embind
 
 The build recipe of the kernel: Dockerfile, patches, CMake and every C++
 source of the module. The overview, the build commands and the verification
@@ -10,14 +10,13 @@ inside this directory.
 | `Dockerfile`                | emsdk 4.0.10 + OCCT `V8_0_0` to static toolkits in `/opt/occt`, native legacy WebAssembly exceptions, the two patches applied. |
 | `patches/`                  | `0001` devirtualises the Gauss integrand; `0002` hashes transients by creation serial.                                         |
 | `CMakeLists.txt`            | The toolkit list and the Emscripten flags. `bindings/*.cpp` is globbed in.                                                     |
-| `rebuild.sh`                | Link in Docker, print sha256, `--twice` for determinism, `--publish` to copy into `services/occt/dist/`.                       |
-| `kapy_bindings.cpp`         | Embind core: `TopoDS_*` types, enums, down-casts.                                                                              |
+| `rebuild.sh`                | Link in Docker, print sha256, `--twice` for determinism, `--publish` to copy into `engine/kernels/occt/dist/`.                 |
 | `bindings/kapy_capi.h`      | The C API (ABI 1). One `KAPY_API` function per line: the host stub generator reads this file.                                  |
 | `bindings/capi*.cpp`        | The C API implementation.                                                                                                      |
 | `bindings/facts*.cpp`       | Naming facts collected inside the module.                                                                                      |
 | `bindings/capiSelfTest*`    | The boot self-test.                                                                                                            |
 | `bindings/exact*`           | Exact B-Rep container.                                                                                                         |
-| `bindings/*.cpp` (the rest) | Embind registrations for the classes TypeScript still uses.                                                                    |
+| `bindings/capiEmbind.cpp`   | The test levers registered with embind (`Kapy_*ForTest`); there is no embind class.                                            |
 
 ## Rules for the C++
 
@@ -27,8 +26,8 @@ inside this directory.
   extern, which a test enforces.
 - The boundary is numbers and bytes: no OCCT type crosses it, and no C++
   exception escapes a `KAPY_API` function.
-- A new Embind registration needs a reason the Rust side cannot take the call;
-  the `oc.` usage in `src/` is a shrink-only count.
+- No Embind class registration: every call the host makes is a `KAPY_API`
+  function. Embind is for test levers only.
 - Exceptions are one model for the whole module (`-fwasm-exceptions`); do not
   add a dependency compiled with `-fexceptions`.
 

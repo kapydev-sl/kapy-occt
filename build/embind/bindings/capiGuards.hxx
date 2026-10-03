@@ -1,4 +1,4 @@
-// services/occt/build/embind/bindings/capiGuards.hxx
+// engine/kernels/occt/build/embind/bindings/capiGuards.hxx
 //
 // The gates an offset-family result has to pass before it becomes a body, with
 // the same decisions as the TypeScript binding's `healShape.ts`,

@@ -1,28 +1,23 @@
-// services/occt/build/embind/bindings/namer.cpp
+// engine/kernels/occt/build/embind/bindings/namer.cpp
 //
-// A batched shape-history query, so the TopoNamer stops paying for a JS<->WASM
-// crossing per subshape.
+// The batched shape-history query and the batched geometric signatures the
+// kernel's naming facts are built from, so naming never pays a call per
+// subshape.
 //
-// namer.propagate.ts walks every subshape of an operand and, for each, calls
-// FindKey, FindIndex, Modified, then Size/First_1/ShapeType/FindIndex/delete/
-// RemoveFirst per list element — and again for Generated. On a gear that is
-// ~100k crossings per boolean, and it dominated the naming path (3x slower
-// than the 7.7 build, which pays the same crossings but with a cheaper call
-// stub). The loop itself is pure OCCT, so it belongs here.
-//
-// `propagate` answers the whole question in ONE call, returning a flat Int32
-// array. Layout, repeated once per operand subshape i = 1..opMap.Extent():
+// `propagate_*` answers the whole history question of an operand in one pass,
+// returning a flat Int32 array. Layout, repeated once per operand subshape
+// i = 1..opMap.Extent():
 //
 //     [ selfIdx, modCount, mod... , genCount, gen... ]
 //
 // All indices are 0-based indices into `resultMap` (-1 when absent), already
-// filtered to the requested shape kind. The TypeScript keeps every naming
-// decision; this only moves the lookups.
+// filtered to the requested shape kind. The `*_props` functions return every
+// face, edge or vertex signature of a map as one flat array. The naming
+// decisions stay in the facts files; this only moves the lookups.
 //
-// Who includes this: the embind link (see ../CMakeLists.txt).
-
-#include <emscripten/bind.h>
-#include <emscripten/val.h>
+// Who includes this: the facts files, through namerCore.hxx.
+// What does NOT belong here: a registration for the host (the kernel has no
+// embind surface but the test levers of capiEmbind.cpp).
 
 #include <BRepAdaptor_Curve.hxx>
 #include <BRepAdaptor_Surface.hxx>
@@ -50,8 +45,6 @@
 #include <vector>
 
 #include "namerCore.hxx"
-
-using namespace emscripten;
 
 using ShapeList = NCollection_List<TopoDS_Shape>;
 
@@ -96,14 +89,6 @@ static std::vector<int> propagate_impl(Op& op, const ShapeIndexedMap& opMap,
         append_indices(op.Generated(s), resultMap, want, out);
     }
     return out;
-}
-
-// Copy into a JS Int32Array. One crossing, one copy — versus ~100k crossings.
-template <typename Op>
-static val propagate(Op& op, const ShapeIndexedMap& opMap, const ShapeIndexedMap& resultMap,
-                     int kind) {
-    const std::vector<int> flat = propagate_impl(op, opMap, resultMap, kind);
-    return val(typed_memory_view(flat.size(), flat.data())).call<val>("slice");
 }
 
 // --- batched geometric signatures -------------------------------------------
@@ -274,28 +259,3 @@ std::vector<int> propagate_history(BRepTools_History& op, const ShapeIndexedMap&
 }
 
 }  // namespace kapy_namer
-
-using namespace kapy_namer;
-
-static val props_view(const std::vector<double>& flat) {
-    return val(typed_memory_view(flat.size(), flat.data())).call<val>("slice");
-}
-static val faceProps(const ShapeIndexedMap& m) { return props_view(face_props(m)); }
-static val edgeProps(const ShapeIndexedMap& m) { return props_view(edge_props(m)); }
-static val vertexProps(const ShapeIndexedMap& m) { return props_view(vertex_props(m)); }
-static int facePropsStride() { return kFacePropsStride; }
-
-// `oc.KapyNamer.propagate(op, opMap, resultMap, kindEnum)`. Presence of this
-// object is what namer.propagate.ts probes before taking the fast path, so a
-// build without it still works — just slowly (see audit-capabilities.mjs).
-struct KapyNamer_Package {};
-
-EMSCRIPTEN_BINDINGS(kapy_occt_namer) {
-    class_<KapyNamer_Package>("KapyNamer")
-        .class_function("propagate", &propagate<BRepBuilderAPI_MakeShape>)
-        .class_function("propagateHistory", &propagate<BRepTools_History>)
-        .class_function("faceProps", &faceProps)
-        .class_function("facePropsStride", &facePropsStride)
-        .class_function("edgeProps", &edgeProps)
-        .class_function("vertexProps", &vertexProps);
-}

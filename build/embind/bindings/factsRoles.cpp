@@ -1,4 +1,4 @@
-// services/occt/build/embind/bindings/factsRoles.cpp
+// engine/kernels/occt/build/embind/bindings/factsRoles.cpp
 //
 // The role facts of a swept profile (a straight prism, a revolve, a sweep
 // along a path), collected while its maker is alive: the result's element

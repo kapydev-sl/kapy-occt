@@ -1,4 +1,4 @@
-// services/occt/build/embind/bindings/capiCore.cpp
+// engine/kernels/occt/build/embind/bindings/capiCore.cpp
 //
 // The parts of the C API that are not an operation: the ABI version, memory
 // the host writes into, the result arena, the last error and the self-test.

@@ -1,4 +1,4 @@
-// services/occt/build/embind/bindings/capiSelfTest.hxx
+// engine/kernels/occt/build/embind/bindings/capiSelfTest.hxx
 //
 // The boot check that the kernel reports boolean history for edges AND
 // vertices, not only faces: what `kapy_self_test` (capiCore.cpp) asks of

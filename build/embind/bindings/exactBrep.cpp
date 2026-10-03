@@ -1,4 +1,4 @@
-// services/occt/build/embind/bindings/exactBrep.cpp
+// engine/kernels/occt/build/embind/bindings/exactBrep.cpp
 //
 // The embind lever of the exact B-Rep's registry: `Kapy_ExactBrepExcludeForTest`
 // takes one geometry class out of it, so a test can hold the writer to its

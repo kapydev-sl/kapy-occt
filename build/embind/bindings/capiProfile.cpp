@@ -1,4 +1,4 @@
-// services/occt/build/embind/bindings/capiProfile.cpp
+// engine/kernels/occt/build/embind/bindings/capiProfile.cpp
 //
 // Profiles into OCCT, call for call as the TypeScript builders make them
 // (`buildLoopEdges.ts`, `buildWire.ts`, `extrudeProfile.helpers.ts`): the same

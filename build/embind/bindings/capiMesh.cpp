@@ -1,4 +1,4 @@
-// services/occt/build/embind/bindings/capiMesh.cpp
+// engine/kernels/occt/build/embind/bindings/capiMesh.cpp
 //
 // A body's triangles as one buffer in the result arena, with no embind array
 // crossing the boundary: `kapy_mesh` is the tessellation the viewport, the
@@ -8,7 +8,10 @@
 //
 // `kapy_mesh` blob: u32 handle, f64 linear deflection, f64 angular deflection,
 // u32 flag count, then one byte per face of the body's map (1: planar, to be
-// checked against its exact area).
+// checked against its exact area), then optionally u8 fresh: 1 meshes a copy of
+// the shape that carries no triangulation (BRepMesh reuses a finer one a shape
+// already holds, so a job whose bytes must not depend on what the screen meshed
+// before it, the STL export, asks for it).
 // Answers: u32 position count (floats) and the f32 positions; u32 index count
 // and the u32 indices; u32 triangle count and one u32 face index per triangle;
 // the f32 normals (as many as positions); u32 edge count and per edge u32 float
@@ -26,6 +29,8 @@
 // capiMeshEdges.cpp).
 
 #include <vector>
+
+#include <BRepBuilderAPI_Copy.hxx>
 
 #include "capiAsk.hxx"
 #include "capiMeshCore.hxx"
@@ -71,10 +76,21 @@ KAPY_API int32_t kapy_mesh(uint32_t ptr, uint32_t length) noexcept {
         const double linear = in.f64();
         const double angular = in.f64();
         const std::vector<uint8_t> planar = readFlags(in);
+        const bool fresh = in.remaining() > 0 && in.u8() != 0;
         BodyMesh mesh;
-        meshBody(entry, linear, angular, planar, mesh);
+        std::vector<uint8_t> seams;
+        if (fresh) {
+            // The copy keeps the original's face order, so the flags and the
+            // face indices read the same.
+            Entry copy;
+            copy.shape = BRepBuilderAPI_Copy(entry.shape, true, false).Shape();
+            meshBody(copy, linear, angular, planar, mesh);
+            seams = seamMask(copy);
+        } else {
+            meshBody(entry, linear, angular, planar, mesh);
+            seams = seamMask(entry);
+        }
         const std::vector<float> normals = vertexNormals(mesh.positions, mesh.indices);
-        const std::vector<uint8_t> seams = seamMask(entry);
         shiftForTest(mesh.positions);
         putArray(out, mesh.positions);
         putArray(out, mesh.indices);

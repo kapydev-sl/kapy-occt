@@ -1,4 +1,4 @@
-// services/occt/build/embind/bindings/capiPrism.cpp
+// engine/kernels/occt/build/embind/bindings/capiPrism.cpp
 //
 // The straight-prism family of the C API: a profile swept along a vector,
 // a profile with holes swept along a vector, several shapes gathered in a

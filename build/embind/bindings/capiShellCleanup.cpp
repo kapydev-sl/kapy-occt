@@ -1,4 +1,4 @@
-// services/occt/build/embind/bindings/capiShellCleanup.cpp
+// engine/kernels/occt/build/embind/bindings/capiShellCleanup.cpp
 //
 // The fallback shell of `runShell.cleanup.ts`, for the bodies a near-tangency
 // fillet leaves micro-wall slivers on: drop the faces below a square

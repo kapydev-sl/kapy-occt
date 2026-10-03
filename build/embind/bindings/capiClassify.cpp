@@ -1,4 +1,4 @@
-// services/occt/build/embind/bindings/capiClassify.cpp
+// engine/kernels/occt/build/embind/bindings/capiClassify.cpp
 //
 // `kapy_classify_point`: where a world-space point sits against a stored body.
 // The walk itself is `probePoint` (capiClassify.hxx), the binding's.

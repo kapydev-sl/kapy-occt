@@ -1,4 +1,4 @@
-// services/occt/build/embind/bindings/capiGuards.cpp
+// engine/kernels/occt/build/embind/bindings/capiGuards.cpp
 //
 // The offset-family gates (see capiGuards.hxx), written to make the same OCCT
 // calls in the same order as `healShape.ts` and `solidGuards.ts`.

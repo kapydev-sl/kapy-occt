@@ -1,4 +1,4 @@
-// services/occt/build/embind/bindings/capiLoft.cpp
+// engine/kernels/occt/build/embind/bindings/capiLoft.cpp
 //
 // The lofted extrudes of the C API: a profile carried to a drafted top
 // (`draftedProfileShape`), through a stack of offset sections

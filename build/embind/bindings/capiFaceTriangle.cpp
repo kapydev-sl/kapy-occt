@@ -1,4 +1,4 @@
-// services/occt/build/embind/bindings/capiFaceTriangle.cpp
+// engine/kernels/occt/build/embind/bindings/capiFaceTriangle.cpp
 //
 // The normal of a free-form face where a fillet decision needs it: the cross
 // product of the triangle nearest a point, on a fine triangulation of that face

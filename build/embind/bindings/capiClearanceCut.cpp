@@ -1,4 +1,4 @@
-// services/occt/build/embind/bindings/capiClearanceCut.cpp
+// engine/kernels/occt/build/embind/bindings/capiClearanceCut.cpp
 //
 // Clearance Cut through the C API, the analytic channel of `runClearanceCut`:
 // grow the part by the clearance (a cube Minkowski, per world axis a sweep of

@@ -1,4 +1,4 @@
-// services/occt/build/embind/bindings/capiFuseMany.cpp
+// engine/kernels/occt/build/embind/bindings/capiFuseMany.cpp
 //
 // Fuse every top-level solid of one shape into a single solid through the C
 // API: `runFuseMany` of the binding. One BRepAlgoAPI_Fuse with the first
