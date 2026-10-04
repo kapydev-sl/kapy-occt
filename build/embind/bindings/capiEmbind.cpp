@@ -4,7 +4,8 @@
 // makes the C measurements lie by a known amount (the red control of the
 // judges), `Kapy_HistoryJudgeForTest` judges a report of boolean history a
 // broken kernel would give (15 numbers) and `Kapy_HistoryReportForTest`
-// measures the real one. Nothing in the product calls them: the store, the
+// measures the real one; `Kapy_FuseManyAttemptsForTest` counts the glue
+// attempts of the last fuseMany call. Nothing in the product calls them: the store, the
 // naming tables and the serial counter are reached through the `kapy_*` C API.
 //
 // Who includes it: the embind link (see ../CMakeLists.txt).
@@ -17,6 +18,7 @@
 #include <string>
 #include <vector>
 
+#include "capiFuseMany.hxx"
 #include "capiSelfTest.hxx"
 #include "capiState.hxx"
 
@@ -53,10 +55,17 @@ std::string historyReport() {
     }
     return out;
 }
+
+// The Fuse runs the last fuseMany call made, "full,shift,plain".
+std::string fuseManyAttempts() {
+    const kapy_capi::FuseAttempts a = kapy_capi::lastFuseAttempts();
+    return std::to_string(a.full) + "," + std::to_string(a.shift) + "," + std::to_string(a.plain);
+}
 }  // namespace
 
 EMSCRIPTEN_BINDINGS(kapy_capi) {
     function("Kapy_CapiPerturbForTest", &perturb);
     function("Kapy_HistoryJudgeForTest", &historyJudge);
     function("Kapy_HistoryReportForTest", &historyReport);
+    function("Kapy_FuseManyAttemptsForTest", &fuseManyAttempts);
 }

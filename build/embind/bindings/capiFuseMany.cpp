@@ -35,6 +35,7 @@
 #include <gp_Trsf.hxx>
 
 #include "capiFinish.hxx"
+#include "capiFuseMany.hxx"
 #include "capiOp.hxx"
 #include "capiStore.hxx"
 #include "kapy_capi.h"
@@ -49,6 +50,12 @@ constexpr size_t SEED_FUSE_MANY = 378582987u;
 constexpr double FUSE_FUZZY_VALUE = 1e-3;
 
 enum Glue { kNone = 0, kShift = 1, kFull = 2 };
+
+// The Fuse runs of the call in progress, read back by the test lever.
+kapy_capi::FuseAttempts& attempts() {
+    static kapy_capi::FuseAttempts counts;
+    return counts;
+}
 
 // What one member weighs and where its centre of mass is.
 struct Member {
@@ -110,6 +117,8 @@ TopoDS_Shape fuseWithGlue(const std::vector<TopoDS_Shape>& members, Glue level) 
     fuse.SetUseOBB(true);
     fuse.SetCheckInverted(false);
     if (level != kNone) fuse.SetGlue(level == kFull ? BOPAlgo_GlueFull : BOPAlgo_GlueShift);
+    kapy_capi::FuseAttempts& counts = attempts();
+    ++(level == kFull ? counts.full : level == kShift ? counts.shift : counts.plain);
     fuse.Build(Message_ProgressRange());
     if (!fuse.IsDone()) return TopoDS_Shape();
     const TopoDS_Shape shape = fuse.Shape();
@@ -143,8 +152,13 @@ TopoDS_Shape copyOf(const TopoDS_Shape& shape) {
 
 }  // namespace
 
+namespace kapy_capi {
+FuseAttempts lastFuseAttempts() { return attempts(); }
+}  // namespace kapy_capi
+
 KAPY_API int32_t kapy_fuse_many(uint32_t ptr, uint32_t length) noexcept {
     return runOp("fuseMany", SEED_FUSE_MANY, ptr, length, [](Blob& in) {
+        attempts() = kapy_capi::FuseAttempts();
         const std::string bornIn = in.str();
         const uint32_t handle = in.u32();
         const bool glue = in.u8() != 0;
